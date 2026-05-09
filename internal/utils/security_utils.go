@@ -53,7 +53,7 @@ func FilterIP(filter string, ip string) (bool, error) {
 		return false, errors.New("invalid IP address")
 	}
 
-	filter = strings.Replace(filter, "-", "/", -1)
+	filter = strings.ReplaceAll(filter, "-", "/")
 
 	if strings.Contains(filter, "/") {
 		_, cidr, err := net.ParseCIDR(filter)

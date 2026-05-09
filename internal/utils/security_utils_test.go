@@ -19,7 +19,7 @@ func TestGetSecret(t *testing.T) {
 
 	err = file.Close()
 	require.NoError(t, err)
-	defer os.Remove("/tmp/tinyauth_test_secret")
+	defer os.Remove("/tmp/tinyauth_test_secret") //nolint:errcheck
 
 	// Get from config
 	assert.Equal(t, "mysecret", utils.GetSecret("mysecret", ""))

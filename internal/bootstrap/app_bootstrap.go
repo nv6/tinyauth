@@ -292,7 +292,7 @@ func (app *BootstrapApp) heartbeatRoutine() {
 			continue
 		}
 
-		res.Body.Close()
+		res.Body.Close() //nolint:errcheck
 
 		if res.StatusCode != 200 && res.StatusCode != 201 {
 			tlog.App.Debug().Str("status", res.Status).Msg("Heartbeat returned non-200/201 status")

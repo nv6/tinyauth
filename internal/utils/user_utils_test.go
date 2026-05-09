@@ -24,7 +24,7 @@ func TestGetUsers(t *testing.T) {
 
 	err = file.Close()
 	require.NoError(t, err)
-	defer os.Remove(tmpDir + "/tinyauth_users_test.txt")
+	defer os.Remove(tmpDir + "/tinyauth_users_test.txt") //nolint:errcheck
 
 	noAttrs := map[string]model.UserAttributes{}
 

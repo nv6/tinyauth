@@ -171,7 +171,7 @@ func (m *ContextMiddleware) cookieAuth(ctx context.Context, uuid string) (*model
 		}
 
 		if !m.auth.IsEmailWhitelisted(userContext.OAuth.Email) {
-			m.auth.DeleteSession(ctx, uuid)
+			m.auth.DeleteSession(ctx, uuid) //nolint:errcheck
 			return nil, nil, fmt.Errorf("email from session cookie not whitelisted: %s", userContext.OAuth.Email)
 		}
 	}

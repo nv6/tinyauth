@@ -179,7 +179,7 @@ func TestUserController(t *testing.T) {
 		{
 			description: "Should rate limit on 3 invalid attempts",
 			middlewares: []gin.HandlerFunc{},
-			run: func(t *testing.T, router *gin.Engine, recorder *httptest.ResponseRecorder) {
+			run: func(t *testing.T, router *gin.Engine, recorder *httptest.ResponseRecorder) { //nolint:staticcheck
 				loginReq := controller.LoginRequest{
 					Username: "testuser",
 					Password: "wrongpassword",
@@ -201,7 +201,7 @@ func TestUserController(t *testing.T) {
 				}
 
 				// 4th attempt should be rate limited
-				recorder = httptest.NewRecorder()
+				recorder = httptest.NewRecorder() //nolint:staticcheck
 				req := httptest.NewRequest("POST", "/api/user/login", strings.NewReader(string(loginReqBody)))
 				req.Header.Set("Content-Type", "application/json")
 
@@ -293,7 +293,7 @@ func TestUserController(t *testing.T) {
 			middlewares: []gin.HandlerFunc{
 				totpCtx,
 			},
-			run: func(t *testing.T, router *gin.Engine, recorder *httptest.ResponseRecorder) {
+			run: func(t *testing.T, router *gin.Engine, recorder *httptest.ResponseRecorder) { //nolint:staticcheck
 				_, err := queries.CreateSession(context.TODO(), repository.CreateSessionParams{
 					UUID:        "test-totp-login-uuid",
 					Username:    "test",
@@ -316,7 +316,7 @@ func TestUserController(t *testing.T) {
 				totpReqBody, err := json.Marshal(totpReq)
 				assert.NoError(t, err)
 
-				recorder = httptest.NewRecorder()
+				recorder = httptest.NewRecorder() //nolint:staticcheck
 				req := httptest.NewRequest("POST", "/api/user/totp", strings.NewReader(string(totpReqBody)))
 				req.Header.Set("Content-Type", "application/json")
 				req.AddCookie(&http.Cookie{
@@ -345,7 +345,7 @@ func TestUserController(t *testing.T) {
 			middlewares: []gin.HandlerFunc{
 				totpCtx,
 			},
-			run: func(t *testing.T, router *gin.Engine, recorder *httptest.ResponseRecorder) {
+			run: func(t *testing.T, router *gin.Engine, recorder *httptest.ResponseRecorder) { //nolint:staticcheck
 				for range 3 {
 					totpReq := controller.TotpRequest{
 						Code: "000000", // invalid code
@@ -354,7 +354,7 @@ func TestUserController(t *testing.T) {
 					totpReqBody, err := json.Marshal(totpReq)
 					assert.NoError(t, err)
 
-					recorder = httptest.NewRecorder()
+					recorder = httptest.NewRecorder() //nolint:staticcheck
 					req := httptest.NewRequest("POST", "/api/user/totp", strings.NewReader(string(totpReqBody)))
 					req.Header.Set("Content-Type", "application/json")
 

@@ -166,6 +166,12 @@ func (controller *OAuthController) oauthCallbackHandler(c *gin.Context) {
 
 	user, err := controller.auth.GetOAuthUserinfo(sessionIdCookie)
 
+	if err != nil {
+		tlog.App.Error().Err(err).Msg("Failed to get user info from OAuth provider")
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/error", controller.config.AppURL))
+		return
+	}
+
 	if user.Email == "" {
 		tlog.App.Error().Msg("OAuth provider did not return an email")
 		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/error", controller.config.AppURL))

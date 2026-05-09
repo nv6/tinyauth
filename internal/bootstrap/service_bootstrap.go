@@ -36,7 +36,7 @@ func (app *BootstrapApp) initServices(queries *repository.Queries) (Services, er
 
 	if err != nil {
 		tlog.App.Warn().Err(err).Msg("Failed to setup LDAP service, starting without it")
-		ldapService.Unconfigure()
+		ldapService.Unconfigure() //nolint:errcheck
 	}
 
 	services.ldapService = ldapService

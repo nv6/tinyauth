@@ -92,7 +92,7 @@ func simpleReq[T any](client *http.Client, url string, headers map[string]string
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return nil, fmt.Errorf("request failed with status: %s", res.Status)

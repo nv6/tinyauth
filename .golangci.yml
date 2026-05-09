@@ -1,0 +1,17 @@
+version: "2"
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - (http.ResponseWriter).Write
+        - (http.ResponseWriter).WriteString
+        - (github.com/gin-gonic/gin.ResponseWriter).Write
+        - (github.com/gin-gonic/gin.ResponseWriter).WriteString
+  exclusions:
+    rules:
+      - linters:
+          - errcheck
+        text: "//nolint:errcheck"
+      - linters:
+          - staticcheck
+        text: "//nolint:staticcheck"

@@ -18,7 +18,7 @@ func TestReadFile(t *testing.T) {
 
 	err = file.Close()
 	require.NoError(t, err)
-	defer os.Remove("/tmp/tinyauth_test_file")
+	defer os.Remove("/tmp/tinyauth_test_file") //nolint:errcheck
 
 	// Normal case
 	content, err := ReadFile("/tmp/tinyauth_test_file")

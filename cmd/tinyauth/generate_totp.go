@@ -68,10 +68,7 @@ func generateTotpCmd() *cli.Command {
 				return fmt.Errorf("failed to parse user: %w", err)
 			}
 
-			docker := false
-			if strings.Contains(tCfg.User, "$$") {
-				docker = true
-			}
+			docker := strings.Contains(tCfg.User, "$$")
 
 			if user.TOTPSecret != "" {
 				return fmt.Errorf("user already has a TOTP secret")

@@ -269,7 +269,7 @@ func (ldap *LdapService) reconnect() error {
 	exp.Reset()
 
 	operation := func() (*ldapgo.Conn, error) {
-		ldap.conn.Close()
+		ldap.conn.Close() //nolint:errcheck
 		conn, err := ldap.connect()
 		if err != nil {
 			return nil, err

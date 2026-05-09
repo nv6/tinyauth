@@ -845,10 +845,3 @@ func (auth *AuthService) ClearRateLimitsTestingOnly() {
 	}
 	auth.loginMutex.Unlock()
 }
-
-func (auth *AuthService) getCookieDomain() string {
-	if auth.config.SubdomainsEnabled {
-		return "." + auth.config.CookieDomain
-	}
-	return auth.config.CookieDomain
-}

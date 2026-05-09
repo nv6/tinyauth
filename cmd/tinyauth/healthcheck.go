@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/tinyauthapp/tinyauth/internal/utils/tlog"
 	"github.com/tinyauthapp/paerser/cli"
+	"github.com/tinyauthapp/tinyauth/internal/utils/tlog"
 )
 
 type healthzResponse struct {
@@ -45,7 +45,7 @@ func healthcheckCmd() *cli.Command {
 			}
 
 			if appUrl == "" {
-				return errors.New("Could not determine app URL")
+				return errors.New("could not determine app url")
 			}
 
 			tlog.App.Info().Str("app_url", appUrl).Msg("Performing health check")
@@ -70,7 +70,7 @@ func healthcheckCmd() *cli.Command {
 				return fmt.Errorf("service is not healthy, got: %s", resp.Status)
 			}
 
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 
 			var healthResp healthzResponse
 

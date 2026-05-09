@@ -73,7 +73,7 @@ func TestGetStringList(t *testing.T) {
 
 	err = file.Close()
 	assert.NoError(t, err)
-	defer os.Remove("/tmp/tinyauth_list_test_file")
+	defer os.Remove("/tmp/tinyauth_list_test_file") //nolint:errcheck
 
 	values, err := utils.GetStringList([]string{" first@example.com ", "", "second@example.com"}, "/tmp/tinyauth_list_test_file")
 	assert.NoError(t, err)
