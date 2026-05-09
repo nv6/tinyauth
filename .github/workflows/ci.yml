@@ -49,6 +49,11 @@ jobs:
         run: |
           cp -r frontend/dist internal/assets/dist
 
+      - name: Lint backend
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12
+
       - name: Run tests
         run: go test -coverprofile=coverage.txt -v ./...
 
