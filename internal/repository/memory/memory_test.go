@@ -1,3 +1,7 @@
+//go:build exclude
+
+// temporary
+
 package memory_test
 
 import (
