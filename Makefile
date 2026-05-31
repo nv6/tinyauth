@@ -62,6 +62,15 @@ binary-linux-arm64:
 test:
 	go test -v ./...
 
+# Go vet
+.PHONY: vet
+vet:
+	go vet ./...
+
+# Go race
+test-race:
+	go test -race ./...
+
 # Development
 dev:
 	docker compose -f $(DEV_COMPOSE) up --force-recreate --pull=always --remove-orphans --build
