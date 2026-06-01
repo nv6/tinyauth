@@ -1,7 +1,3 @@
-//go:build exclude
-
-// temporary
-
 // Package memory provides an in-memory implementation of repository.Store for use in tests.
 package memory
 

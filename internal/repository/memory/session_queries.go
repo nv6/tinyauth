@@ -1,7 +1,3 @@
-//go:build exclude
-
-// temporary
-
 package memory
 
 import (
