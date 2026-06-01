@@ -23,6 +23,7 @@ type authorizeErrorParams struct {
 	callback      string
 	callbackError string
 	state         string
+	json          bool
 }
 
 type OIDCController struct {
@@ -65,20 +66,34 @@ type ClientCredentials struct {
 	ClientSecret string
 }
 
+type AuthorizeScreenParams struct {
+	LoginFor   string `url:"login_for"`
+	OIDCTicket string `url:"oidc_ticket"`
+	OIDCScope  string `url:"oidc_scope"`
+	OIDCName   string `url:"oidc_name"`
+}
+
+type AuthorizeCompleteRequest struct {
+	Ticket string `json:"oidc_ticket" binding:"required"`
+}
+
 func NewOIDCController(
 	log *logger.Logger,
 	oidcService *service.OIDCService,
 	runtimeConfig model.RuntimeConfig,
-	router *gin.RouterGroup) *OIDCController {
+	router *gin.RouterGroup,
+	mainRouter *gin.RouterGroup) *OIDCController {
 	controller := &OIDCController{
 		log:     log,
 		oidc:    oidcService,
 		runtime: runtimeConfig,
 	}
 
+	mainRouter.POST("/authorize", controller.authorize)
+	mainRouter.GET("/authorize", controller.authorize)
+
 	oidcGroup := router.Group("/oidc")
-	oidcGroup.GET("/clients/:id", controller.GetClientInfo)
-	oidcGroup.POST("/authorize", controller.Authorize)
+	oidcGroup.POST("/authorize-complete", controller.authorizeComplete)
 	oidcGroup.POST("/token", controller.Token)
 	oidcGroup.GET("/userinfo", controller.Userinfo)
 	oidcGroup.POST("/userinfo", controller.Userinfo)
@@ -86,47 +101,10 @@ func NewOIDCController(
 	return controller
 }
 
-func (controller *OIDCController) GetClientInfo(c *gin.Context) {
-	if controller.oidc == nil {
-		controller.log.App.Warn().Msg("Received OIDC client info request but OIDC server is not configured")
-		c.JSON(500, gin.H{
-			"status":  500,
-			"message": "OIDC not configured",
-		})
-		return
-	}
-
-	var req ClientRequest
-
-	err := c.BindUri(&req)
-	if err != nil {
-		controller.log.App.Error().Err(err).Msg("Failed to bind URI")
-		c.JSON(400, gin.H{
-			"status":  400,
-			"message": "Bad Request",
-		})
-		return
-	}
-
-	client, ok := controller.oidc.GetClient(req.ClientID)
-
-	if !ok {
-		controller.log.App.Warn().Str("clientId", req.ClientID).Msg("Client not found")
-		c.JSON(404, gin.H{
-			"status":  404,
-			"message": "Client not found",
-		})
-		return
-	}
-
-	c.JSON(200, gin.H{
-		"status": 200,
-		"client": client.ClientID,
-		"name":   client.Name,
-	})
-}
-
-func (controller *OIDCController) Authorize(c *gin.Context) {
+// This endpoint does **not** return a code, it handles param validation, ticket creation
+// and then redirects to the frontend to handle the consent screen. It performs no destructive
+// actions (like logging out an existing session)
+func (controller *OIDCController) authorize(c *gin.Context) {
 	if controller.oidc == nil {
 		controller.authorizeError(c, authorizeErrorParams{
 			err:          errors.New("err_oidc_not_configured"),
@@ -136,29 +114,9 @@ func (controller *OIDCController) Authorize(c *gin.Context) {
 		return
 	}
 
-	userContext, err := new(model.UserContext).NewFromGin(c)
-
-	if err != nil {
-		controller.authorizeError(c, authorizeErrorParams{
-			err:          err,
-			reason:       "Failed to get user context",
-			reasonPublic: "User is not logged in or the session is invalid",
-		})
-		return
-	}
-
-	if !userContext.Authenticated {
-		controller.authorizeError(c, authorizeErrorParams{
-			err:          errors.New("err user not logged in"),
-			reason:       "User not logged in",
-			reasonPublic: "The user is not logged in",
-		})
-		return
-	}
-
 	var req service.AuthorizeRequest
 
-	err = c.Bind(&req)
+	err := c.Bind(&req)
 
 	if err != nil {
 		controller.authorizeError(c, authorizeErrorParams{
@@ -169,7 +127,7 @@ func (controller *OIDCController) Authorize(c *gin.Context) {
 		return
 	}
 
-	_, ok := controller.oidc.GetClient(req.ClientID)
+	client, ok := controller.oidc.GetClient(req.ClientID)
 
 	if !ok {
 		controller.authorizeError(c, authorizeErrorParams{
@@ -179,6 +137,8 @@ func (controller *OIDCController) Authorize(c *gin.Context) {
 		})
 		return
 	}
+
+	// TODO: handle request= parameter with JWTs
 
 	err = controller.oidc.ValidateAuthorizeParams(req)
 
@@ -203,8 +163,97 @@ func (controller *OIDCController) Authorize(c *gin.Context) {
 		return
 	}
 
+	ticket := controller.oidc.CreateAuthorizeRequestTicket(req)
+
+	queries, err := query.Values(AuthorizeScreenParams{
+		LoginFor:   req.ClientID,
+		OIDCTicket: ticket,
+		OIDCScope:  req.Scope,
+		OIDCName:   client.Name,
+	})
+
+	if err != nil {
+		controller.authorizeError(c, authorizeErrorParams{
+			err:          err,
+			reason:       "Failed to compile authorize queries",
+			reasonPublic: "An internal error occured while processing your request",
+		})
+		return
+	}
+
+	redirectUrl := fmt.Sprintf("%s/oidc/authorize?%s", controller.oidc.GetIssuer(), queries.Encode())
+	c.Redirect(http.StatusFound, redirectUrl)
+}
+
+// The actual **internal** endpoint that actually creates the code and session.
+// It is called by the frontend after the user has logged in and given consent.
+func (controller *OIDCController) authorizeComplete(c *gin.Context) {
+	if controller.oidc == nil {
+		// For this endpoint we return JSON errors since it's called
+		// by the frontend and not an external client, so there's
+		// no redirect_uri to send the user to in case of error
+		controller.authorizeError(c, authorizeErrorParams{
+			err:          errors.New("err_oidc_not_configured"),
+			reason:       "OIDC not configured",
+			reasonPublic: "This instance is not configured for OIDC",
+			json:         true,
+		})
+		return
+	}
+
+	userContext, err := new(model.UserContext).NewFromGin(c)
+
+	if err != nil {
+		controller.authorizeError(c, authorizeErrorParams{
+			err:          err,
+			reason:       "Failed to get user context",
+			reasonPublic: "User is not logged in or the session is invalid",
+			json:         true,
+		})
+		return
+	}
+
+	if !userContext.Authenticated {
+		controller.authorizeError(c, authorizeErrorParams{
+			err:          errors.New("err user not logged in"),
+			reason:       "User not logged in",
+			reasonPublic: "The user is not logged in",
+			json:         true,
+		})
+		return
+	}
+
+	var req AuthorizeCompleteRequest
+
+	err = c.BindJSON(&req)
+
+	if err != nil {
+		controller.authorizeError(c, authorizeErrorParams{
+			err:          err,
+			reason:       "Failed to bind JSON",
+			reasonPublic: "The client provided an invalid authorization request",
+			json:         true,
+		})
+		return
+	}
+
+	authorizeReq, ok := controller.oidc.GetAuthorizeRequestByTicket(req.Ticket)
+
+	if !ok {
+		controller.authorizeError(c, authorizeErrorParams{
+			err:          errors.New("authorize request not found for ticket"),
+			reason:       "Invalid or expired ticket",
+			reasonPublic: "The authorization request has expired or is invalid",
+			json:         true,
+		})
+		return
+	}
+
+	// We no longer need the ticket
+	controller.oidc.DeleteAuthorizeRequestTicket(req.Ticket)
+
 	// Create the sub to find and delete old sessions
-	sub := controller.oidc.CreateSub(*userContext, req.ClientID)
+	sub := controller.oidc.CreateSub(*userContext, authorizeReq.ClientID)
 
 	// Before storing the code, delete old session
 	err = controller.oidc.DeleteOldSession(c, sub)
@@ -213,19 +262,19 @@ func (controller *OIDCController) Authorize(c *gin.Context) {
 			err:           err,
 			reason:        "Failed to delete old sessions",
 			reasonPublic:  "Failed to delete old sessions",
-			callback:      req.RedirectURI,
+			callback:      authorizeReq.RedirectURI,
 			callbackError: "server_error",
-			state:         req.State,
+			state:         authorizeReq.State,
 		})
 		return
 	}
 
 	// Create the authorization code
-	code := controller.oidc.CreateCode(req, *userContext)
+	code := controller.oidc.CreateCode(*authorizeReq, *userContext)
 
 	queries, err := query.Values(AuthorizeCallback{
 		Code:  code,
-		State: req.State,
+		State: authorizeReq.State,
 	})
 
 	if err != nil {
@@ -233,16 +282,16 @@ func (controller *OIDCController) Authorize(c *gin.Context) {
 			err:           err,
 			reason:        "Failed to build query",
 			reasonPublic:  "Failed to build query",
-			callback:      req.RedirectURI,
+			callback:      authorizeReq.RedirectURI,
 			callbackError: "server_error",
-			state:         req.State,
+			state:         authorizeReq.State,
 		})
 		return
 	}
 
 	c.JSON(200, gin.H{
 		"status":       200,
-		"redirect_uri": fmt.Sprintf("%s?%s", req.RedirectURI, queries.Encode()),
+		"redirect_uri": fmt.Sprintf("%s?%s", authorizeReq.RedirectURI, queries.Encode()),
 	})
 }
 
@@ -533,14 +582,22 @@ func (controller *OIDCController) authorizeError(c *gin.Context, params authoriz
 		queries, err := query.Values(errorQueries)
 
 		if err != nil {
+			controller.log.App.Error().Err(err).Msg("Failed to build callback error query")
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
-		c.JSON(200, gin.H{
-			"status":       200,
-			"redirect_uri": fmt.Sprintf("%s?%s", params.callback, queries.Encode()),
-		})
+		redirectUrl := fmt.Sprintf("%s?%s", params.callback, queries.Encode())
+
+		if params.json {
+			c.JSON(200, gin.H{
+				"status":       200,
+				"redirect_uri": redirectUrl,
+			})
+			return
+		}
+
+		c.Redirect(http.StatusFound, redirectUrl)
 		return
 	}
 
@@ -551,6 +608,7 @@ func (controller *OIDCController) authorizeError(c *gin.Context, params authoriz
 	queries, err := query.Values(errorQueries)
 
 	if err != nil {
+		controller.log.App.Error().Err(err).Msg("Failed to build error query")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -563,8 +621,13 @@ func (controller *OIDCController) authorizeError(c *gin.Context, params authoriz
 		redirectUrl = fmt.Sprintf("%s/error?%s", controller.runtime.AppURL, queries.Encode())
 	}
 
-	c.JSON(200, gin.H{
-		"status":       200,
-		"redirect_uri": redirectUrl,
-	})
+	if params.json {
+		c.JSON(200, gin.H{
+			"status":       200,
+			"redirect_uri": redirectUrl,
+		})
+		return
+	}
+
+	c.Redirect(http.StatusFound, redirectUrl)
 }

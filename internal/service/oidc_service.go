@@ -106,14 +106,14 @@ type TokenResponse struct {
 }
 
 type AuthorizeRequest struct {
-	Scope               string `json:"scope" binding:"required"`
-	ResponseType        string `json:"response_type" binding:"required"`
-	ClientID            string `json:"client_id" binding:"required"`
-	RedirectURI         string `json:"redirect_uri" binding:"required"`
-	State               string `json:"state"`
-	Nonce               string `json:"nonce"`
-	CodeChallenge       string `json:"code_challenge"`
-	CodeChallengeMethod string `json:"code_challenge_method"`
+	Scope               string `form:"scope" binding:"required"`
+	ResponseType        string `form:"response_type" binding:"required"`
+	ClientID            string `form:"client_id" binding:"required"`
+	RedirectURI         string `form:"redirect_uri" binding:"required"`
+	State               string `form:"state"`
+	Nonce               string `form:"nonce"`
+	CodeChallenge       string `form:"code_challenge"`
+	CodeChallengeMethod string `form:"code_challenge_method"`
 }
 
 type AuthorizeCodeEntry struct {
@@ -142,8 +142,9 @@ type OIDCService struct {
 	issuer     string
 
 	caches struct {
-		code     *CacheStore[AuthorizeCodeEntry]
-		usedCode *CacheStore[UsedCodeEntry]
+		code      *CacheStore[AuthorizeCodeEntry]
+		usedCode  *CacheStore[UsedCodeEntry]
+		authorize *CacheStore[AuthorizeRequest]
 	}
 }
 
@@ -311,8 +312,11 @@ func NewOIDCService(
 	// Create caches
 	codeCash := NewCacheStore[AuthorizeCodeEntry](256)
 	usedCode := NewCacheStore[UsedCodeEntry](256)
+	authorize := NewCacheStore[AuthorizeRequest](256)
+
 	service.caches.code = codeCash
 	service.caches.usedCode = usedCode
+	service.caches.authorize = authorize
 
 	// Start cache cleanup routine
 	dg.Go(func(ctx context.Context) {
@@ -324,6 +328,7 @@ func NewOIDCService(
 			case <-ticker.C:
 				service.caches.code.Sweep()
 				service.caches.usedCode.Sweep()
+				service.caches.authorize.Sweep()
 			case <-ctx.Done():
 				return
 			}
@@ -845,4 +850,26 @@ func (service *OIDCService) MarkCodeAsUsed(codeHash string, sub string) {
 
 func (service *OIDCService) DeleteSessionBySub(ctx context.Context, sub string) error {
 	return service.queries.DeleteOIDCSessionBySub(ctx, sub)
+}
+
+func (service *OIDCService) CreateAuthorizeRequestTicket(req AuthorizeRequest) string {
+	ticket := utils.GenerateString(32)
+
+	service.caches.authorize.Set(ticket, req, 10*time.Minute)
+
+	return ticket
+}
+
+func (service *OIDCService) GetAuthorizeRequestByTicket(ticket string) (*AuthorizeRequest, bool) {
+	entry, ok := service.caches.authorize.Get(ticket)
+
+	if !ok {
+		return nil, false
+	}
+
+	return &entry, true
+}
+
+func (service *OIDCService) DeleteAuthorizeRequestTicket(ticket string) {
+	service.caches.authorize.Delete(ticket)
 }
