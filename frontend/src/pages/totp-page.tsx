@@ -16,7 +16,10 @@ import { useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useLocation } from "react-router";
 import { toast } from "sonner";
-import { useOIDCParams } from "@/lib/hooks/oidc";
+import {
+  recompileScreenParams,
+  useScreenParams,
+} from "@/lib/hooks/screen-params";
 
 export const TotpPage = () => {
   const { totp } = useUserContext();
@@ -27,8 +30,8 @@ export const TotpPage = () => {
   const redirectTimer = useRef<number | null>(null);
 
   const searchParams = new URLSearchParams(search);
-  const redirectUri = searchParams.get("redirect_uri") || undefined;
-  const oidcParams = useOIDCParams(searchParams);
+  const screenParams = useScreenParams(searchParams);
+  const compiledParams = recompileScreenParams(screenParams);
 
   const totpMutation = useMutation({
     mutationFn: (values: TotpSchema) => axios.post("/api/user/totp", values),
@@ -39,14 +42,7 @@ export const TotpPage = () => {
       });
 
       redirectTimer.current = window.setTimeout(() => {
-        if (oidcParams.isOidc) {
-          window.location.replace(`/authorize?${oidcParams.compiled}`);
-          return;
-        }
-
-        window.location.replace(
-          `/continue${redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : ""}`,
-        );
+        window.location.replace(`/continue${compiledParams}`);
       }, 500);
     },
     onError: () => {

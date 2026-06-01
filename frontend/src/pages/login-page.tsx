@@ -18,7 +18,6 @@ import { OAuthButton } from "@/components/ui/oauth-button";
 import { SeperatorWithChildren } from "@/components/ui/separator";
 import { useAppContext } from "@/context/app-context";
 import { useUserContext } from "@/context/user-context";
-import { useOIDCParams } from "@/lib/hooks/oidc";
 import { LoginSchema } from "@/schemas/login-schema";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
@@ -26,6 +25,10 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useLocation } from "react-router";
 import { toast } from "sonner";
+import {
+  recompileScreenParams,
+  useScreenParams,
+} from "@/lib/hooks/screen-params";
 
 const iconMap: Record<string, React.ReactNode> = {
   google: <GoogleIcon />,
@@ -46,7 +49,9 @@ export const LoginPage = () => {
   const { t } = useTranslation();
 
   const [showRedirectButton, setShowRedirectButton] = useState(false);
-  const [useTailscale, setUseTailscale] = useState(tailscale.nodeName !== undefined);
+  const [useTailscale, setUseTailscale] = useState(
+    tailscale.nodeName !== undefined,
+  );
 
   const hasAutoRedirectedRef = useRef(false);
 
@@ -56,17 +61,19 @@ export const LoginPage = () => {
   const formId = useId();
 
   const searchParams = new URLSearchParams(search);
-  const redirectUri = searchParams.get("redirect_uri") || undefined;
-  const oidcParams = useOIDCParams(searchParams);
+  const screenParams = useScreenParams(searchParams);
+  const isOidc = screenParams.login_for === "oidc";
+  const compiledParams = recompileScreenParams(screenParams);
 
   const [isOauthAutoRedirect, setIsOauthAutoRedirect] = useState(
     providers.find((provider) => provider.id === oauth.autoRedirect) !==
-      undefined && redirectUri !== undefined,
+      undefined && screenParams.redirect_url !== undefined,
   );
 
   const oauthProviders = providers.filter(
     (provider) => provider.id !== "local" && provider.id !== "ldap",
   );
+
   const userAuthConfigured =
     providers.find(
       (provider) => provider.id === "local" || provider.id === "ldap",
@@ -79,16 +86,7 @@ export const LoginPage = () => {
     variables: oauthVariables,
   } = useMutation({
     mutationFn: (provider: string) => {
-      const getParams = function (): string {
-        if (oidcParams.isOidc) {
-          return `?${oidcParams.compiled}`;
-        }
-        if (redirectUri) {
-          return `?redirect_uri=${encodeURIComponent(redirectUri)}`;
-        }
-        return "";
-      };
-      return axios.get(`/api/oauth/url/${provider}${getParams()}`);
+      return axios.get(`/api/oauth/url/${provider}${compiledParams}`);
     },
     mutationKey: ["oauth"],
     onSuccess: (data) => {
@@ -119,13 +117,7 @@ export const LoginPage = () => {
     mutationKey: ["login"],
     onSuccess: (data) => {
       if (data.data.totpPending) {
-        if (oidcParams.isOidc) {
-          window.location.replace(`/totp?${oidcParams.compiled}`);
-          return;
-        }
-        window.location.replace(
-          `/totp${redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : ""}`,
-        );
+        window.location.replace(`/totp${compiledParams}`);
         return;
       }
 
@@ -134,13 +126,7 @@ export const LoginPage = () => {
       });
 
       redirectTimer.current = window.setTimeout(() => {
-        if (oidcParams.isOidc) {
-          window.location.replace(`/authorize?${oidcParams.compiled}`);
-          return;
-        }
-        window.location.replace(
-          `/continue${redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : ""}`,
-        );
+        window.location.replace(`/continue${compiledParams}`);
       }, 500);
     },
     onError: (error: AxiosError) => {
@@ -163,13 +149,7 @@ export const LoginPage = () => {
         });
 
         redirectTimer.current = window.setTimeout(() => {
-          if (oidcParams.isOidc) {
-            window.location.replace(`/authorize?${oidcParams.compiled}`);
-            return;
-          }
-          window.location.replace(
-            `/continue${redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : ""}`,
-          );
+          window.location.replace(`/continue${compiledParams}`);
         }, 500);
       },
       onError: () => {
@@ -184,7 +164,7 @@ export const LoginPage = () => {
       !auth.authenticated &&
       isOauthAutoRedirect &&
       !hasAutoRedirectedRef.current &&
-      redirectUri !== undefined
+      screenParams.redirect_url !== undefined
     ) {
       hasAutoRedirectedRef.current = true;
       oauthMutate(oauth.autoRedirect);
@@ -195,7 +175,7 @@ export const LoginPage = () => {
     hasAutoRedirectedRef,
     oauth.autoRedirect,
     isOauthAutoRedirect,
-    redirectUri,
+    screenParams.redirect_url,
   ]);
 
   useEffect(() => {
@@ -210,17 +190,12 @@ export const LoginPage = () => {
     };
   }, [redirectTimer, redirectButtonTimer]);
 
-  if (auth.authenticated && oidcParams.isOidc) {
-    return <Navigate to={`/authorize?${oidcParams.compiled}`} replace />;
+  if (auth.authenticated && isOidc) {
+    return <Navigate to={`/authorize${compiledParams}`} replace />;
   }
 
-  if (auth.authenticated && redirectUri !== undefined) {
-    return (
-      <Navigate
-        to={`/continue${redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : ""}`}
-        replace
-      />
-    );
+  if (auth.authenticated && screenParams.redirect_url !== undefined) {
+    return <Navigate to={`/continue${compiledParams}`} replace />;
   }
 
   if (auth.authenticated) {

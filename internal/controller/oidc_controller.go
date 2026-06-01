@@ -74,7 +74,7 @@ type AuthorizeScreenParams struct {
 }
 
 type AuthorizeCompleteRequest struct {
-	Ticket string `json:"oidc_ticket" binding:"required"`
+	Ticket string `json:"ticket" binding:"required"`
 }
 
 func NewOIDCController(
@@ -166,7 +166,7 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 	ticket := controller.oidc.CreateAuthorizeRequestTicket(req)
 
 	queries, err := query.Values(AuthorizeScreenParams{
-		LoginFor:   req.ClientID,
+		LoginFor:   "oidc",
 		OIDCTicket: ticket,
 		OIDCScope:  req.Scope,
 		OIDCName:   client.Name,
