@@ -10,13 +10,13 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type UserinfoExtractor func(client *http.Client, url string) (*model.Claims, error)
+type OAuthUserinfoExtractor func(client *http.Client, url string) (*model.Claims, error)
 
 type OAuthService struct {
 	serviceCfg        model.OAuthServiceConfig
 	config            *oauth2.Config
 	ctx               context.Context
-	userinfoExtractor UserinfoExtractor
+	userinfoExtractor OAuthUserinfoExtractor
 	id                string
 }
 
@@ -50,7 +50,7 @@ func NewOAuthService(config model.OAuthServiceConfig, id string, ctx context.Con
 	}
 }
 
-func (s *OAuthService) WithUserinfoExtractor(extractor UserinfoExtractor) *OAuthService {
+func (s *OAuthService) WithUserinfoExtractor(extractor OAuthUserinfoExtractor) *OAuthService {
 	s.userinfoExtractor = extractor
 	return s
 }

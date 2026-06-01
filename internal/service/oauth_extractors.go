@@ -17,7 +17,7 @@ type GithubEmailResponse []struct {
 	Verified bool   `json:"verified"`
 }
 
-type GithubUserInfoResponse struct {
+type GithubUserinfoResponse struct {
 	Login string `json:"login"`
 	Name  string `json:"name"`
 	ID    int    `json:"id"`
@@ -30,7 +30,7 @@ func defaultExtractor(client *http.Client, url string) (*model.Claims, error) {
 func githubExtractor(client *http.Client, _ string) (*model.Claims, error) {
 	var user model.Claims
 
-	userInfo, err := simpleReq[GithubUserInfoResponse](client, "https://api.github.com/user", map[string]string{
+	userInfo, err := simpleReq[GithubUserinfoResponse](client, "https://api.github.com/user", map[string]string{
 		"accept": "application/vnd.github+json",
 	})
 	if err != nil {
