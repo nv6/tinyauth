@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/google/go-querystring/query"
 
 	"github.com/tinyauthapp/tinyauth/internal/model"
@@ -116,7 +117,7 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 
 	var req service.AuthorizeRequest
 
-	err := c.Bind(&req)
+	err := c.ShouldBindWith(&req, binding.Query)
 
 	if err != nil {
 		controller.authorizeError(c, authorizeErrorParams{
