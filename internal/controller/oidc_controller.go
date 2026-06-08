@@ -115,13 +115,13 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 		return
 	}
 
-	var req service.AuthorizeRequest
-
 	reqQueries := c.Request.URL.Query()
 
-	if reqQueries.Get("request") != "" {
-		requestObject, err := controller.oidc.DecodeAuthorizeJWT(reqQueries.Get("request"))
+	var req service.AuthorizeRequest
 
+	// step 1: if we have a request object, decode it and ignore other params. If not, bind the params as usual
+	if raw := reqQueries.Get("request"); raw != "" {
+		requestObject, err := controller.oidc.DecodeAuthorizeJWT(raw)
 		if err != nil {
 			controller.authorizeError(c, authorizeErrorParams{
 				err:          err,
@@ -130,23 +130,22 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 			})
 			return
 		}
-
 		req = *requestObject
 	} else {
-		var queryReq service.AuthorizeRequest
-
-		err := c.ShouldBindWith(&queryReq, binding.Query)
-
-		if err != nil {
+		// step 2: by default we assume normal GET query parameters
+		bind := binding.Query
+		// step 3: if it's a POST request, we try form parameters
+		if c.Request.Method == http.MethodPost {
+			bind = binding.Form
+		}
+		if err := c.ShouldBindWith(&req, bind); err != nil {
 			controller.authorizeError(c, authorizeErrorParams{
 				err:          err,
-				reason:       "Failed to bind query parameters",
-				reasonPublic: "The client provided invalid query parameters",
+				reason:       "Failed to bind request parameters",
+				reasonPublic: "The client provided invalid parameters",
 			})
 			return
 		}
-
-		req = queryReq
 	}
 
 	client, ok := controller.oidc.GetClient(req.ClientID)
