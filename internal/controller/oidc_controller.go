@@ -115,37 +115,16 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 		return
 	}
 
-	reqQueries := c.Request.URL.Query()
+	req, err := controller.resolveAuthorizeRequest(c)
 
-	var req service.AuthorizeRequest
-
-	// step 1: if we have a request object, decode it and ignore other params. If not, bind the params as usual
-	if raw := reqQueries.Get("request"); raw != "" {
-		requestObject, err := controller.oidc.DecodeAuthorizeJWT(raw)
-		if err != nil {
-			controller.authorizeError(c, authorizeErrorParams{
-				err:          err,
-				reason:       "Failed to decode request object",
-				reasonPublic: "The client provided an invalid request object",
-			})
-			return
-		}
-		req = *requestObject
-	} else {
-		// step 2: by default we assume normal GET query parameters
-		bind := binding.Query
-		// step 3: if it's a POST request, we try form parameters
-		if c.Request.Method == http.MethodPost {
-			bind = binding.Form
-		}
-		if err := c.ShouldBindWith(&req, bind); err != nil {
-			controller.authorizeError(c, authorizeErrorParams{
-				err:          err,
-				reason:       "Failed to bind request parameters",
-				reasonPublic: "The client provided invalid parameters",
-			})
-			return
-		}
+	if err != nil {
+		controller.log.App.Warn().Err(err).Msg("Failed to resolve authorize request")
+		controller.authorizeError(c, authorizeErrorParams{
+			err:          err,
+			reason:       "Failed to resolve authorize request",
+			reasonPublic: "The authorization request is invalid",
+		})
+		return
 	}
 
 	client, ok := controller.oidc.GetClient(req.ClientID)
@@ -159,7 +138,7 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 		return
 	}
 
-	err := controller.oidc.ValidateAuthorizeParams(req)
+	err = controller.oidc.ValidateAuthorizeParams(*req)
 
 	if err != nil {
 		controller.log.App.Warn().Err(err).Msg("Failed to validate authorize params")
@@ -182,7 +161,7 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 		return
 	}
 
-	ticket := controller.oidc.CreateAuthorizeRequestTicket(req)
+	ticket := controller.oidc.CreateAuthorizeRequestTicket(*req)
 
 	queries, err := query.Values(AuthorizeScreenParams{
 		LoginFor:   FrontendLoginForOIDC,
@@ -284,6 +263,7 @@ func (controller *OIDCController) authorizeComplete(c *gin.Context) {
 			callback:      authorizeReq.RedirectURI,
 			callbackError: "server_error",
 			state:         authorizeReq.State,
+			json:          true,
 		})
 		return
 	}
@@ -304,6 +284,7 @@ func (controller *OIDCController) authorizeComplete(c *gin.Context) {
 			callback:      authorizeReq.RedirectURI,
 			callbackError: "server_error",
 			state:         authorizeReq.State,
+			json:          true,
 		})
 		return
 	}
@@ -649,4 +630,52 @@ func (controller *OIDCController) authorizeError(c *gin.Context, params authoriz
 	}
 
 	c.Redirect(http.StatusFound, redirectUrl)
+}
+
+func (controller *OIDCController) resolveAuthorizeRequest(c *gin.Context) (*service.AuthorizeRequest, error) {
+	// step 1: if we have a request object, decode it and ignore other params. If not, bind the params as usual
+	// we check both query and form parameters for the request object since this endpoint can be called with both GET and POST
+	requestObject, err := controller.resolveRequestObject(c)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if requestObject != nil {
+		return requestObject, nil
+	}
+
+	// step 2: by default we assume normal GET query parameters
+	// step 3: if it's a POST request, we try form parameters
+	return controller.resolveNormalParams(c)
+}
+
+func (controller *OIDCController) resolveRequestObject(c *gin.Context) (*service.AuthorizeRequest, error) {
+	raw := c.Query("request")
+
+	if raw == "" && c.Request.Method == http.MethodPost {
+		raw = c.PostForm("request")
+	}
+
+	if raw == "" {
+		return nil, nil
+	}
+
+	return controller.oidc.DecodeAuthorizeJWT(raw)
+}
+
+func (controller *OIDCController) resolveNormalParams(c *gin.Context) (*service.AuthorizeRequest, error) {
+	var req service.AuthorizeRequest
+
+	bind := binding.Query
+
+	if c.Request.Method == http.MethodPost {
+		bind = binding.Form
+	}
+
+	if err := c.ShouldBindWith(&req, bind); err != nil {
+		return nil, err
+	}
+
+	return &req, nil
 }

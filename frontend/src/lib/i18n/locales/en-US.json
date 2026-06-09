@@ -98,5 +98,6 @@
   "quickActionsThemeLight": "Light",
   "quickActionsThemeDark": "Dark",
   "quickActionsThemeSystem": "System",
-  "quickActionsLogout": "Logout"
+  "quickActionsLogout": "Logout",
+  "quickActionsTitle": "Quick Actions"
 }

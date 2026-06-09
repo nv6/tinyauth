@@ -109,7 +109,10 @@ export const QuickActions = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="rounded-full transition-transform duration-200 will-change-transform hover:scale-105 hover:cursor-pointer focus:ring-0 focus:outline-3 focus:outline-ring/50">
+        <button
+          aria-label={t("quickActionsTitle")}
+          className="rounded-full transition-transform duration-200 will-change-transform hover:scale-105 hover:cursor-pointer focus:ring-0 focus:outline-3 focus:outline-ring/50"
+        >
           {auth.authenticated ? (
             <Avatar initial={initial!} />
           ) : (

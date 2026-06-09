@@ -174,7 +174,7 @@ func TestOIDCController(t *testing.T) {
 				assert.Equal(t, http.StatusFound, recorder.Code)
 				location := recorder.Header().Get("Location")
 				assert.Contains(t, location, oidcService.GetIssuer()+"/error")
-				assert.Contains(t, location, url.QueryEscape("The client provided an invalid request object"))
+				assert.Contains(t, location, url.QueryEscape("The authorization request is invalid"))
 			},
 		},
 		{

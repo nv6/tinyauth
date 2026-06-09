@@ -69,7 +69,7 @@ export const TotpPage = () => {
     if (auth.authenticated) {
       return <Navigate to={loginForUrl} replace />;
     }
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login${compiledParams}`} replace />;
   }
 
   return (
