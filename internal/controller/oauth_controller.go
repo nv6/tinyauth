@@ -61,7 +61,7 @@ func (controller *OAuthController) oauthURLHandler(c *gin.Context) {
 		return
 	}
 
-	var reqParams service.OAuthURLParams
+	var reqParams service.OAuthCallbackParams
 
 	err = c.BindQuery(&reqParams)
 
@@ -83,7 +83,7 @@ func (controller *OAuthController) oauthURLHandler(c *gin.Context) {
 		}
 	}
 
-	sessionId, _, err := controller.auth.NewOAuthSession(req.Provider, reqParams)
+	sessionId, err := controller.auth.NewOAuthSession(req.Provider, reqParams)
 
 	if err != nil {
 		controller.log.App.Error().Err(err).Msg("Failed to create new OAuth session")
@@ -272,13 +272,14 @@ func (controller *OAuthController) oauthCallbackHandler(c *gin.Context) {
 			c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/error", controller.runtime.AppURL))
 			return
 		}
-		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/authorize?%s", controller.runtime.AppURL, queries.Encode()))
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/oidc/authorize?%s", controller.runtime.AppURL, queries.Encode()))
 		return
 	}
 
 	if oauthPendingSession.CallbackParams.RedirectURI != "" {
 		queries, err := query.Values(RedirectQuery{
 			RedirectURI: oauthPendingSession.CallbackParams.RedirectURI,
+			LoginFor:    FrontendLoginForApp,
 		})
 
 		if err != nil {
@@ -294,11 +295,8 @@ func (controller *OAuthController) oauthCallbackHandler(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, controller.runtime.AppURL)
 }
 
-func (controller *OAuthController) isOidcRequest(params service.OAuthURLParams) bool {
-	return params.Scope != "" &&
-		params.ResponseType != "" &&
-		params.ClientID != "" &&
-		params.RedirectURI != ""
+func (controller *OAuthController) isOidcRequest(params service.OAuthCallbackParams) bool {
+	return params.LoginFor == string(FrontendLoginForOIDC)
 }
 
 func (controller *OAuthController) getCookieDomain() string {

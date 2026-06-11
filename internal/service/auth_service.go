@@ -30,17 +30,14 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
-// slightly modified version of the AuthorizeRequest from the OIDC service to basically accept all
-// parameters and pass them to the authorize page if needed
-type OAuthURLParams struct {
-	Scope               string `form:"scope" url:"scope"`
-	ResponseType        string `form:"response_type" url:"response_type"`
-	ClientID            string `form:"client_id" url:"client_id"`
-	RedirectURI         string `form:"redirect_uri" url:"redirect_uri"`
-	State               string `form:"state" url:"state"`
-	Nonce               string `form:"nonce" url:"nonce"`
-	CodeChallenge       string `form:"code_challenge" url:"code_challenge"`
-	CodeChallengeMethod string `form:"code_challenge_method" url:"code_challenge_method"`
+// We either store params for redirecting to an app after OAuth login,
+// or for redirecting back to the authorize screen to continue OIDC
+type OAuthCallbackParams struct {
+	LoginFor    string `form:"login_for" url:"login_for"`
+	OIDCTicket  string `form:"oidc_ticket" url:"oidc_ticket"`
+	OIDCScope   string `form:"oidc_scope" url:"oidc_scope"`
+	OIDCName    string `form:"oidc_name" url:"oidc_name"`
+	RedirectURI string `form:"redirect_uri" url:"redirect_uri"`
 }
 
 type OAuthPendingSession struct {
@@ -49,7 +46,7 @@ type OAuthPendingSession struct {
 	Token          *oauth2.Token
 	Service        *OAuthServiceImpl
 	ExpiresAt      time.Time
-	CallbackParams OAuthURLParams
+	CallbackParams OAuthCallbackParams
 }
 
 type LoginAttempt struct {
@@ -516,17 +513,17 @@ func (auth *AuthService) LDAPAuthConfigured() bool {
 	return auth.ldap != nil
 }
 
-func (auth *AuthService) NewOAuthSession(serviceName string, params OAuthURLParams) (string, OAuthPendingSession, error) {
+func (auth *AuthService) NewOAuthSession(serviceName string, params OAuthCallbackParams) (string, error) {
 	service, ok := auth.oauthBroker.GetService(serviceName)
 
 	if !ok {
-		return "", OAuthPendingSession{}, fmt.Errorf("oauth service not found: %s", serviceName)
+		return "", fmt.Errorf("oauth service not found: %s", serviceName)
 	}
 
 	sessionId, err := uuid.NewRandom()
 
 	if err != nil {
-		return "", OAuthPendingSession{}, fmt.Errorf("failed to generate session ID: %w", err)
+		return "", fmt.Errorf("failed to generate session ID: %w", err)
 	}
 
 	state := service.NewRandom()
@@ -542,7 +539,7 @@ func (auth *AuthService) NewOAuthSession(serviceName string, params OAuthURLPara
 
 	auth.caches.oauth.Set(sessionId.String(), session, time.Minute*10)
 
-	return sessionId.String(), session, nil
+	return sessionId.String(), nil
 }
 
 func (auth *AuthService) GetOAuthURL(sessionId string) (string, error) {
