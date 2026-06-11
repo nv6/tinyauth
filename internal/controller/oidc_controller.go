@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -31,6 +33,8 @@ type OIDCController struct {
 	log     *logger.Logger
 	oidc    *service.OIDCService
 	runtime model.RuntimeConfig
+	helpers model.RuntimeHelpers
+	config  model.Config
 }
 
 type AuthorizeCallback struct {
@@ -68,10 +72,11 @@ type ClientCredentials struct {
 }
 
 type AuthorizeScreenParams struct {
-	LoginFor   FrontendLoginFor `url:"login_for"`
-	OIDCTicket string           `url:"oidc_ticket"`
-	OIDCScope  string           `url:"oidc_scope"`
-	OIDCName   string           `url:"oidc_name"`
+	LoginFor        FrontendLoginFor `url:"login_for"`
+	OIDCTicket      string           `url:"oidc_ticket"`
+	OIDCScope       string           `url:"oidc_scope"`
+	OIDCName        string           `url:"oidc_name"`
+	OIDCShowConsent bool             `url:"oidc_show_consent"`
 }
 
 type AuthorizeCompleteRequest struct {
@@ -82,12 +87,16 @@ func NewOIDCController(
 	log *logger.Logger,
 	oidcService *service.OIDCService,
 	runtimeConfig model.RuntimeConfig,
+	helpers model.RuntimeHelpers,
+	config model.Config,
 	router *gin.RouterGroup,
 	mainRouter *gin.RouterGroup) *OIDCController {
 	controller := &OIDCController{
 		log:     log,
 		oidc:    oidcService,
 		runtime: runtimeConfig,
+		helpers: helpers,
+		config:  config,
 	}
 
 	mainRouter.POST("/authorize", controller.authorize)
@@ -163,11 +172,31 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 
 	ticket := controller.oidc.CreateAuthorizeRequestTicket(*req)
 
+	// Check if we have consented before for this client and scope
+	consnetCookie, err := c.Cookie(controller.runtime.ConsentCookieName)
+
+	showConsent := true
+
+	if err == nil {
+		consentEntry, err := controller.oidc.GetConsentEntry(c, consnetCookie)
+
+		if err == nil && consentEntry != nil {
+			if consentEntry.ClientID == req.ClientID && consentEntry.Scopes == req.Scope {
+				showConsent = false
+			}
+		} else {
+			if !errors.Is(err, sql.ErrNoRows) {
+				controller.log.App.Error().Err(err).Msg("Failed to get consent entry for consent cookie")
+			}
+		}
+	}
+
 	queries, err := query.Values(AuthorizeScreenParams{
-		LoginFor:   FrontendLoginForOIDC,
-		OIDCTicket: ticket,
-		OIDCScope:  req.Scope,
-		OIDCName:   client.Name,
+		LoginFor:        FrontendLoginForOIDC,
+		OIDCTicket:      ticket,
+		OIDCScope:       req.Scope,
+		OIDCName:        client.Name,
+		OIDCShowConsent: showConsent,
 	})
 
 	if err != nil {
@@ -287,6 +316,33 @@ func (controller *OIDCController) authorizeComplete(c *gin.Context) {
 			json:          true,
 		})
 		return
+	}
+
+	// Just before returning let's set the consent cookie
+	consnetUUID, err := controller.oidc.CreateConsentEntry(c, authorizeReq.ClientID, authorizeReq.Scope)
+
+	// If we fail to create the consent entry, we don't want to block the authorization flow,
+	// but we log the error and move on without setting the cookie
+	if err == nil {
+		cookieDomain, err := controller.helpers.GetCookieDomain(c.Request.Context(), c.RemoteIP())
+
+		if err == nil {
+			cookie := &http.Cookie{
+				Name:     controller.runtime.ConsentCookieName,
+				Value:    consnetUUID,
+				Path:     "/",
+				Domain:   cookieDomain,
+				Expires:  time.Now().Add(365 * 24 * time.Hour), // set consent cookie for 1 year
+				Secure:   controller.config.Auth.SecureCookie,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			}
+			http.SetCookie(c.Writer, cookie)
+		} else {
+			controller.log.App.Error().Err(err).Msg("Failed to determine cookie domain for consent cookie")
+		}
+	} else {
+		controller.log.App.Error().Err(err).Msg("Failed to create consent entry")
 	}
 
 	c.JSON(200, gin.H{

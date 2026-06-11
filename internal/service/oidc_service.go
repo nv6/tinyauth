@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/steveiliop56/ding"
 	"github.com/tinyauthapp/tinyauth/internal/model"
 	"github.com/tinyauthapp/tinyauth/internal/repository"
@@ -903,4 +904,48 @@ func (service *OIDCService) DecodeAuthorizeJWT(tokenString string) (*AuthorizeRe
 	}
 
 	return claims, nil
+}
+
+func (service *OIDCService) CreateConsentEntry(ctx context.Context, clientId string, scope string) (string, error) {
+	u := uuid.New()
+
+	entry := repository.CreateOIDCConsentParams{
+		UUID:     u.String(),
+		ClientID: clientId,
+		Scopes:   scope,
+	}
+
+	_, err := service.queries.CreateOIDCConsent(ctx, entry)
+
+	if err != nil {
+		return "", err
+	}
+
+	return entry.UUID, nil
+}
+
+func (service *OIDCService) GetConsentEntry(ctx context.Context, uuid string) (*repository.OidcConsent, error) {
+	entry, err := service.queries.GetOIDCConsentByUUID(ctx, uuid)
+
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &entry, nil
+}
+
+func (service *OIDCService) DeleteConsentEntry(ctx context.Context, uuid string) error {
+	return service.queries.DeleteOIDCConsentByUUID(ctx, uuid)
+}
+
+func (service *OIDCService) UpdateConsentEntry(ctx context.Context, uuid string, scopes string) error {
+	_, err := service.queries.UpdateOIDCConsent(ctx, repository.UpdateOIDCConsentParams{
+		UUID:   uuid,
+		Scopes: scopes,
+	})
+
+	return err
 }

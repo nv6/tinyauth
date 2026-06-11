@@ -24,6 +24,8 @@ func TestProxyController(t *testing.T) {
 
 	cfg, runtime := test.CreateTestConfigs(t)
 
+	helpers := test.CreateTestHelpers()
+
 	const browserUserAgent = `
 	Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Mobile Safari/537.36`
 
@@ -395,7 +397,7 @@ func TestProxyController(t *testing.T) {
 		Log: log,
 	})
 
-	authService := service.NewAuthService(log, cfg, runtime, ctx, dg, nil, store, broker, nil, policyEngine)
+	authService := service.NewAuthService(log, cfg, runtime, helpers, ctx, dg, nil, store, broker, nil, policyEngine)
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
