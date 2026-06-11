@@ -59,7 +59,7 @@ type AuthService struct {
 	log     *logger.Logger
 	config  model.Config
 	runtime model.RuntimeConfig
-	helpers model.RuntimeHelpers
+	helpers *model.RuntimeHelpers
 	ctx     context.Context
 
 	ldap         *LdapService
@@ -87,7 +87,7 @@ func NewAuthService(
 	log *logger.Logger,
 	config model.Config,
 	runtime model.RuntimeConfig,
-	helpers model.RuntimeHelpers,
+	helpers *model.RuntimeHelpers,
 	ctx context.Context,
 	dg *ding.Ding,
 	ldap *LdapService,

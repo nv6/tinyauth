@@ -33,7 +33,7 @@ type OIDCController struct {
 	log     *logger.Logger
 	oidc    *service.OIDCService
 	runtime model.RuntimeConfig
-	helpers model.RuntimeHelpers
+	helpers *model.RuntimeHelpers
 	config  model.Config
 }
 
@@ -87,7 +87,7 @@ func NewOIDCController(
 	log *logger.Logger,
 	oidcService *service.OIDCService,
 	runtimeConfig model.RuntimeConfig,
-	helpers model.RuntimeHelpers,
+	helpers *model.RuntimeHelpers,
 	config model.Config,
 	router *gin.RouterGroup,
 	mainRouter *gin.RouterGroup) *OIDCController {

@@ -25,6 +25,7 @@ import {
   recompileScreenParams,
   useScreenParams,
 } from "@/lib/hooks/screen-params";
+import { useEffect } from "react";
 
 type Scope = {
   id: string;
@@ -90,25 +91,48 @@ export const AuthorizePage = () => {
   const isOidc = screenParams.login_for === "oidc";
   const compiledParams = recompileScreenParams(screenParams);
 
-  const authorizeMutation = useMutation({
-    mutationFn: () => {
-      return axios.post("/api/oidc/authorize-complete", {
-        ticket: screenParams.oidc_ticket,
-      });
-    },
-    mutationKey: ["authorize", screenParams.oidc_ticket],
-    onSuccess: (data) => {
-      toast.info(t("authorizeSuccessTitle"), {
-        description: t("authorizeSuccessSubtitle"),
-      });
-      window.location.replace(data.data.redirect_uri);
-    },
-    onError: (error) => {
-      window.location.replace(
-        `/error?error=${encodeURIComponent(error.message)}`,
-      );
-    },
-  });
+  const { mutate: authorizeMutate, isPending: authorizeIsPending } =
+    useMutation({
+      mutationFn: () => {
+        return axios.post("/api/oidc/authorize-complete", {
+          ticket: screenParams.oidc_ticket,
+        });
+      },
+      mutationKey: ["authorize", screenParams.oidc_ticket],
+      onSuccess: (data) => {
+        toast.info(t("authorizeSuccessTitle"), {
+          description: t("authorizeSuccessSubtitle"),
+        });
+        window.location.replace(data.data.redirect_uri);
+      },
+      onError: (error) => {
+        window.location.replace(
+          `/error?error=${encodeURIComponent(error.message)}`,
+        );
+      },
+    });
+
+  useEffect(() => {
+    if (
+      !isOidc ||
+      screenParams.oidc_ticket === undefined ||
+      screenParams.oidc_scope === undefined ||
+      !auth.authenticated
+    ) {
+      return;
+    }
+
+    if (screenParams.oidc_show_consent === false) {
+      authorizeMutate();
+    }
+  }, [
+    isOidc,
+    screenParams.oidc_ticket,
+    screenParams.oidc_scope,
+    screenParams.oidc_show_consent,
+    auth.authenticated,
+    authorizeMutate,
+  ]);
 
   if (
     !isOidc ||
@@ -129,6 +153,19 @@ export const AuthorizePage = () => {
 
   const scopes =
     screenParams.oidc_scope.split(" ").filter((s) => s.trim() !== "") || [];
+
+  if (screenParams.oidc_show_consent === false) {
+    return (
+      <Card>
+        <CardHeader className="gap-1.5">
+          <CardTitle className="text-xl">Authorizing</CardTitle>
+          <CardDescription>
+            You will soon be redirected to your application...
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -171,15 +208,12 @@ export const AuthorizePage = () => {
         </CardContent>
       )}
       <CardFooter className="flex flex-col items-stretch gap-3">
-        <Button
-          onClick={() => authorizeMutation.mutate()}
-          loading={authorizeMutation.isPending}
-        >
+        <Button onClick={() => authorizeMutate()} loading={authorizeIsPending}>
           {t("authorizeTitle")}
         </Button>
         <Button
           onClick={() => navigate(`/logout${compiledParams}`)}
-          disabled={authorizeMutation.isPending}
+          disabled={authorizeIsPending}
           variant="outline"
         >
           {t("cancelTitle")}

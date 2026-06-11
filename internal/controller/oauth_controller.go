@@ -24,7 +24,7 @@ type OAuthController struct {
 	log     *logger.Logger
 	config  model.Config
 	runtime model.RuntimeConfig
-	helpers model.RuntimeHelpers
+	helpers *model.RuntimeHelpers
 	auth    *service.AuthService
 }
 
@@ -32,7 +32,7 @@ func NewOAuthController(
 	log *logger.Logger,
 	config model.Config,
 	runtimeConfig model.RuntimeConfig,
-	helpers model.RuntimeHelpers,
+	helpers *model.RuntimeHelpers,
 	router *gin.RouterGroup,
 	auth *service.AuthService,
 ) *OAuthController {
