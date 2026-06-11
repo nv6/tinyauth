@@ -30,6 +30,8 @@ func TestOIDCController(t *testing.T) {
 
 	cfg, runtime := test.CreateTestConfigs(t)
 
+	helpers := test.CreateTestHelpers()
+
 	ctx := context.TODO()
 	dg := ding.New(ctx)
 
@@ -831,7 +833,7 @@ func TestOIDCController(t *testing.T) {
 				svc = nil
 			}
 
-			controller.NewOIDCController(log, svc, runtime, group, &router.RouterGroup)
+			controller.NewOIDCController(log, svc, runtime, helpers, cfg, group, &router.RouterGroup)
 
 			recorder := httptest.NewRecorder()
 
