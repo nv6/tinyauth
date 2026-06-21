@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           package_json_file: ./frontend/package.json
 
@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           package_json_file: ./frontend/package.json
 
@@ -143,14 +143,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           tags: ghcr.io/${{ github.repository_owner }}/tinyauth
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=buildkit-amd64
+          cache-to: type=gha,mode=max,scope=buildkit-amd64
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=${{ needs.generate-metadata.outputs.VERSION }}
             COMMIT_HASH=${{ needs.generate-metadata.outputs.COMMIT_HASH }}
             BUILD_TIMESTAMP=${{ needs.generate-metadata.outputs.BUILD_TIMESTAMP }}
-            LDFLAGS="-s -w"
+            LDFLAGS=-s -w
 
       - name: Export digest
         run: |
@@ -200,14 +200,14 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/tinyauth
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
           file: Dockerfile.distroless
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=buildkit-distroless-amd64
+          cache-to: type=gha,mode=max,scope=buildkit-distroless-amd64
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=${{ needs.generate-metadata.outputs.VERSION }}
             COMMIT_HASH=${{ needs.generate-metadata.outputs.COMMIT_HASH }}
             BUILD_TIMESTAMP=${{ needs.generate-metadata.outputs.BUILD_TIMESTAMP }}
-            LDFLAGS="-s -w"
+            LDFLAGS=-s -w
 
       - name: Export digest
         run: |
@@ -255,14 +255,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           tags: ghcr.io/${{ github.repository_owner }}/tinyauth
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=buildkit-arm64
+          cache-to: type=gha,mode=max,scope=buildkit-arm64
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=${{ needs.generate-metadata.outputs.VERSION }}
             COMMIT_HASH=${{ needs.generate-metadata.outputs.COMMIT_HASH }}
             BUILD_TIMESTAMP=${{ needs.generate-metadata.outputs.BUILD_TIMESTAMP }}
-            LDFLAGS="-s -w"
+            LDFLAGS=-s -w
 
       - name: Export digest
         run: |
@@ -312,14 +312,14 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/tinyauth
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
           file: Dockerfile.distroless
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=buildkit-distroless-arm64
+          cache-to: type=gha,mode=max,scope=buildkit-distroless-arm64
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=${{ needs.generate-metadata.outputs.VERSION }}
             COMMIT_HASH=${{ needs.generate-metadata.outputs.COMMIT_HASH }}
             BUILD_TIMESTAMP=${{ needs.generate-metadata.outputs.BUILD_TIMESTAMP }}
-            LDFLAGS="-s -w"
+            LDFLAGS=-s -w
 
       - name: Export digest
         run: |

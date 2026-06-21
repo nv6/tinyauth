@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -87,24 +86,4 @@ func Filter[T any](slice []T, test func(T) bool) (res []T) {
 		}
 	}
 	return res
-}
-
-func IsRedirectSafe(redirectURL string, domain string) bool {
-	if redirectURL == "" {
-		return false
-	}
-
-	parsed, err := url.Parse(redirectURL)
-
-	if err != nil {
-		return false
-	}
-
-	hostname := parsed.Hostname()
-
-	if strings.HasSuffix(hostname, fmt.Sprintf(".%s", domain)) {
-		return true
-	}
-
-	return hostname == domain
 }

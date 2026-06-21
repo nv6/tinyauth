@@ -63,7 +63,10 @@ export const LoginPage = () => {
 
   const searchParams = new URLSearchParams(search);
   const screenParams = useScreenParams(searchParams);
-  const compiledParams = recompileScreenParams(screenParams);
+  const compiledParams = recompileScreenParams({
+    ...screenParams,
+    oidc_prompt: undefined,
+  });
   const loginForUrl = useLoginFor({
     login_for: screenParams.login_for,
     compiledParams,
@@ -168,7 +171,8 @@ export const LoginPage = () => {
       !auth.authenticated &&
       isOauthAutoRedirect &&
       !hasAutoRedirectedRef.current &&
-      screenParams.login_for !== undefined
+      screenParams.redirect_uri &&
+      screenParams.login_for
     ) {
       hasAutoRedirectedRef.current = true;
       oauthMutate(oauth.autoRedirect);
@@ -180,6 +184,7 @@ export const LoginPage = () => {
     oauth.autoRedirect,
     isOauthAutoRedirect,
     screenParams.login_for,
+    screenParams.redirect_uri,
   ]);
 
   useEffect(() => {
@@ -194,7 +199,7 @@ export const LoginPage = () => {
     };
   }, [redirectTimer, redirectButtonTimer]);
 
-  if (auth.authenticated) {
+  if (auth.authenticated && screenParams.oidc_prompt !== "login") {
     return <Navigate to={loginForUrl} replace />;
   }
 

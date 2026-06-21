@@ -126,61 +126,6 @@ func TestFilter(t *testing.T) {
 	assert.Equal(t, expectedStr, resultStr)
 }
 
-func TestIsRedirectSafe(t *testing.T) {
-	// Setup
-	domain := "example.com"
-
-	// Case with no subdomain
-	redirectURL := "http://example.com/welcome"
-	result := utils.IsRedirectSafe(redirectURL, domain)
-	assert.True(t, result)
-
-	// Case with different domain
-	redirectURL = "http://malicious.com/phishing"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.False(t, result)
-
-	// Case with subdomain
-	redirectURL = "http://sub.example.com/page"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.True(t, result)
-
-	// Case with sub-subdomain
-	redirectURL = "http://a.b.example.com/home"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.True(t, result)
-
-	// Case with empty redirect URL
-	redirectURL = ""
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.False(t, result)
-
-	// Case with invalid URL
-	redirectURL = "http://[::1]:namedport"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.False(t, result)
-
-	// Case with URL having port
-	redirectURL = "http://sub.example.com:8080/page"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.True(t, result)
-
-	// Case with URL having different subdomain
-	redirectURL = "http://another.example.com/page"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.True(t, result)
-
-	// Case with URL having different TLD
-	redirectURL = "http://example.org/page"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.False(t, result)
-
-	// Case with malicious domain
-	redirectURL = "https://malicious-example.com/yoyo"
-	result = utils.IsRedirectSafe(redirectURL, domain)
-	assert.False(t, result)
-}
-
 func TestGetStandaloneCookieDomain(t *testing.T) {
 	// Normal case
 	domain := "http://tinyauth.app"

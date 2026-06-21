@@ -91,54 +91,41 @@ export const AuthorizePage = () => {
   const isOidc = screenParams.login_for === "oidc";
   const compiledParams = recompileScreenParams(screenParams);
 
-  const { mutate: authorizeMutate, isPending: authorizeIsPending } =
-    useMutation({
-      mutationFn: () => {
-        return axios.post("/api/oidc/authorize-complete", {
-          ticket: screenParams.oidc_ticket,
-        });
-      },
-      mutationKey: ["authorize", screenParams.oidc_ticket],
-      onSuccess: (data) => {
-        toast.info(t("authorizeSuccessTitle"), {
-          description: t("authorizeSuccessSubtitle"),
-        });
-        window.location.replace(data.data.redirect_uri);
-      },
-      onError: (error) => {
-        window.location.replace(
-          `/error?error=${encodeURIComponent(error.message)}`,
-        );
-      },
-    });
+  // TODO: maybe a better way to do this
+  const shouldAutoAuthorize =
+    auth.authenticated &&
+    isOidc &&
+    screenParams.oidc_ticket !== undefined &&
+    screenParams.oidc_scope !== undefined &&
+    screenParams.oidc_prompt === "none";
+
+  const { mutate: authorizeMutate, isPending: authorizePending } = useMutation({
+    mutationFn: () => {
+      return axios.post("/api/oidc/authorize-complete", {
+        ticket: screenParams.oidc_ticket,
+      });
+    },
+    mutationKey: ["authorize", screenParams.oidc_ticket],
+    onSuccess: (data) => {
+      toast.info(t("authorizeSuccessTitle"), {
+        description: t("authorizeSuccessSubtitle"),
+      });
+      window.location.replace(data.data.redirect_uri);
+    },
+    onError: (error) => {
+      window.location.replace(
+        `/error?error=${encodeURIComponent(error.message)}`,
+      );
+    },
+  });
 
   useEffect(() => {
-    if (
-      !isOidc ||
-      screenParams.oidc_ticket === undefined ||
-      screenParams.oidc_scope === undefined ||
-      !auth.authenticated
-    ) {
-      return;
-    }
-
-    if (screenParams.oidc_show_consent === false) {
+    if (shouldAutoAuthorize) {
       authorizeMutate();
     }
-  }, [
-    isOidc,
-    screenParams.oidc_ticket,
-    screenParams.oidc_scope,
-    screenParams.oidc_show_consent,
-    auth.authenticated,
-    authorizeMutate,
-  ]);
+  }, [shouldAutoAuthorize, authorizeMutate]);
 
-  if (
-    !isOidc ||
-    screenParams.oidc_ticket === undefined ||
-    screenParams.oidc_scope === undefined
-  ) {
+  if (!isOidc || !screenParams.oidc_ticket || !screenParams.oidc_scope) {
     return (
       <Navigate
         to={`/error?error=${encodeURIComponent(t("authorizeErrorInvalidParams"))}`}
@@ -147,25 +134,12 @@ export const AuthorizePage = () => {
     );
   }
 
-  if (!auth.authenticated) {
+  if (!auth.authenticated || screenParams.oidc_prompt === "login") {
     return <Navigate to={`/login${compiledParams}`} replace />;
   }
 
   const scopes =
     screenParams.oidc_scope.split(" ").filter((s) => s.trim() !== "") || [];
-
-  if (screenParams.oidc_show_consent === false) {
-    return (
-      <Card>
-        <CardHeader className="gap-1.5">
-          <CardTitle className="text-xl">Authorizing</CardTitle>
-          <CardDescription>
-            You will soon be redirected to your application...
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
 
   return (
     <Card>
@@ -208,12 +182,16 @@ export const AuthorizePage = () => {
         </CardContent>
       )}
       <CardFooter className="flex flex-col items-stretch gap-3">
-        <Button onClick={() => authorizeMutate()} loading={authorizeIsPending}>
+        <Button
+          onClick={() => authorizeMutate()}
+          loading={authorizePending}
+          disabled={shouldAutoAuthorize}
+        >
           {t("authorizeTitle")}
         </Button>
         <Button
           onClick={() => navigate(`/logout${compiledParams}`)}
-          disabled={authorizeIsPending}
+          disabled={authorizePending || shouldAutoAuthorize}
           variant="outline"
         >
           {t("cancelTitle")}

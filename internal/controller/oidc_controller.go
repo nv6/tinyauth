@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/go-querystring/query"
+	"go.uber.org/dig"
 
 	"github.com/tinyauthapp/tinyauth/internal/model"
 	"github.com/tinyauthapp/tinyauth/internal/service"
@@ -32,9 +34,7 @@ type authorizeErrorParams struct {
 type OIDCController struct {
 	log     *logger.Logger
 	oidc    *service.OIDCService
-	runtime model.RuntimeConfig
-	helpers *model.RuntimeHelpers
-	config  model.Config
+	runtime *model.RuntimeConfig
 }
 
 type AuthorizeCallback struct {
@@ -72,37 +72,38 @@ type ClientCredentials struct {
 }
 
 type AuthorizeScreenParams struct {
-	LoginFor        FrontendLoginFor `url:"login_for"`
-	OIDCTicket      string           `url:"oidc_ticket"`
-	OIDCScope       string           `url:"oidc_scope"`
-	OIDCName        string           `url:"oidc_name"`
-	OIDCShowConsent bool             `url:"oidc_show_consent"`
+	LoginFor   FrontendLoginFor   `url:"login_for"`
+	OIDCTicket string             `url:"oidc_ticket"`
+	OIDCScope  string             `url:"oidc_scope"`
+	OIDCName   string             `url:"oidc_name"`
+	OIDCPrompt service.OIDCPrompt `url:"oidc_prompt,omitempty"`
 }
 
 type AuthorizeCompleteRequest struct {
 	Ticket string `json:"ticket" binding:"required"`
 }
 
-func NewOIDCController(
-	log *logger.Logger,
-	oidcService *service.OIDCService,
-	runtimeConfig model.RuntimeConfig,
-	helpers *model.RuntimeHelpers,
-	config model.Config,
-	router *gin.RouterGroup,
-	mainRouter *gin.RouterGroup) *OIDCController {
+type OIDCControllerInput struct {
+	dig.In
+
+	Log           *logger.Logger
+	OIDCService   *service.OIDCService
+	RuntimeConfig *model.RuntimeConfig
+	RouterGroup   *gin.RouterGroup `name:"apiRouterGroup"`
+	MainRouter    *gin.RouterGroup `name:"mainRouterGroup"`
+}
+
+func NewOIDCController(i OIDCControllerInput) *OIDCController {
 	controller := &OIDCController{
-		log:     log,
-		oidc:    oidcService,
-		runtime: runtimeConfig,
-		helpers: helpers,
-		config:  config,
+		log:     i.Log,
+		oidc:    i.OIDCService,
+		runtime: i.RuntimeConfig,
 	}
 
-	mainRouter.POST("/authorize", controller.authorize)
-	mainRouter.GET("/authorize", controller.authorize)
+	i.MainRouter.POST("/authorize", controller.authorize)
+	i.MainRouter.GET("/authorize", controller.authorize)
 
-	oidcGroup := router.Group("/oidc")
+	oidcGroup := i.RouterGroup.Group("/oidc")
 	oidcGroup.POST("/authorize-complete", controller.authorizeComplete)
 	oidcGroup.POST("/token", controller.Token)
 	oidcGroup.GET("/userinfo", controller.Userinfo)
@@ -170,40 +171,106 @@ func (controller *OIDCController) authorize(c *gin.Context) {
 		return
 	}
 
+	prompts := controller.oidc.GetPrompt(req.Prompt)
+
+	if slices.Contains(prompts, service.OIDCPromptNone) && len(prompts) > 1 {
+		controller.authorizeError(c, authorizeErrorParams{
+			err:           errors.New("invalid prompt"),
+			reason:        "Invalid prompt",
+			reasonPublic:  "The prompt parameters are invalid",
+			callback:      req.RedirectURI,
+			callbackError: "invalid_request",
+			state:         req.State,
+		})
+		return
+	}
+
+	userContext, err := new(model.UserContext).NewFromGin(c)
+
+	if err != nil {
+		if !errors.Is(err, model.ErrUserContextNotFound) {
+			controller.log.App.Warn().Err(err).Msg("Failed to get user context")
+		}
+	}
+
+	if (err != nil || !userContext.Authenticated) && slices.Contains(prompts, service.OIDCPromptNone) {
+		controller.authorizeError(c, authorizeErrorParams{
+			err:           errors.New("user not logged in"),
+			reason:        "User not logged in",
+			reasonPublic:  "The user is not logged in",
+			callback:      req.RedirectURI,
+			callbackError: "login_required",
+			state:         req.State,
+		})
+		return
+	}
+
 	ticket := controller.oidc.CreateAuthorizeRequestTicket(*req)
 
-	// Check if we have consented before for this client and scope
-	consnetCookie, err := c.Cookie(controller.runtime.ConsentCookieName)
+	values := AuthorizeScreenParams{
+		LoginFor:   FrontendLoginForOIDC,
+		OIDCTicket: ticket,
+		OIDCScope:  req.Scope,
+		OIDCName:   client.Name,
+	}
 
-	showConsent := true
+	if slices.Contains(prompts, service.OIDCPromptLogin) {
+		values.OIDCPrompt = service.OIDCPromptLogin
+	} else if slices.Contains(prompts, service.OIDCPromptNone) {
+		values.OIDCPrompt = service.OIDCPromptNone
+	}
 
-	if err == nil {
-		consentEntry, err := controller.oidc.GetConsentEntry(c, consnetCookie)
+	// If no prompt is already set, we can check if we can/should skip it based on the cookie
+	if values.OIDCPrompt == "" {
+		consnetCookie, err := c.Cookie(controller.runtime.ConsentCookieName)
 
-		if err == nil && consentEntry != nil {
-			if consentEntry.ClientID == req.ClientID && consentEntry.Scopes == req.Scope {
-				showConsent = false
-			}
-		} else {
-			if !errors.Is(err, sql.ErrNoRows) {
-				controller.log.App.Error().Err(err).Msg("Failed to get consent entry for consent cookie")
+		if err == nil {
+			consentEntry, err := controller.oidc.GetConsentEntry(c, consnetCookie)
+
+			if err == nil && consentEntry != nil {
+				if consentEntry.ClientID == req.ClientID && consentEntry.Scopes == req.Scope {
+					values.OIDCPrompt = service.OIDCPromptNone
+				}
+			} else {
+				if !errors.Is(err, sql.ErrNoRows) {
+					controller.log.App.Error().Err(err).Msg("Failed to get consent entry for consent cookie")
+				}
 			}
 		}
 	}
 
-	queries, err := query.Values(AuthorizeScreenParams{
-		LoginFor:        FrontendLoginForOIDC,
-		OIDCTicket:      ticket,
-		OIDCScope:       req.Scope,
-		OIDCName:        client.Name,
-		OIDCShowConsent: showConsent,
-	})
+	if req.MaxAge != "" && userContext != nil {
+		maxAge, err := strconv.Atoi(req.MaxAge)
+		if err != nil {
+			controller.authorizeError(c, authorizeErrorParams{
+				err:           err,
+				reason:        "Invalid max_age",
+				reasonPublic:  "The max_age parameter is invalid",
+				callback:      req.RedirectURI,
+				callbackError: "invalid_request",
+				state:         req.State,
+			})
+			return
+		}
+
+		if userContext.Authenticated {
+			authTime := time.Unix(userContext.AuthTime, 0)
+			if authTime.Add(time.Duration(maxAge) * time.Second).Before(time.Now()) {
+				values.OIDCPrompt = service.OIDCPromptLogin
+			}
+		}
+	}
+
+	queries, err := query.Values(values)
 
 	if err != nil {
 		controller.authorizeError(c, authorizeErrorParams{
-			err:          err,
-			reason:       "Failed to compile authorize queries",
-			reasonPublic: "An internal error occured while processing your request",
+			err:           err,
+			reason:        "Failed to compile authorize queries",
+			reasonPublic:  "An internal error occured while processing your request",
+			callback:      req.RedirectURI,
+			callbackError: "server_error",
+			state:         req.State,
 		})
 		return
 	}
@@ -231,16 +298,12 @@ func (controller *OIDCController) authorizeComplete(c *gin.Context) {
 	userContext, err := new(model.UserContext).NewFromGin(c)
 
 	if err != nil {
-		controller.authorizeError(c, authorizeErrorParams{
-			err:          err,
-			reason:       "Failed to get user context",
-			reasonPublic: "User is not logged in or the session is invalid",
-			json:         true,
-		})
-		return
+		if !errors.Is(err, model.ErrUserContextNotFound) {
+			controller.log.App.Warn().Err(err).Msg("Failed to get user context")
+		}
 	}
 
-	if !userContext.Authenticated {
+	if err != nil || !userContext.Authenticated {
 		controller.authorizeError(c, authorizeErrorParams{
 			err:          errors.New("err user not logged in"),
 			reason:       "User not logged in",
@@ -475,7 +538,7 @@ func (controller *OIDCController) Token(c *gin.Context) {
 			return
 		}
 
-		tokenRes, err := controller.oidc.GenerateAccessToken(c, client, *entry)
+		tokenRes, err := controller.oidc.GenerateAccessToken(c, client, *entry, entry.AuthTime)
 
 		if err != nil {
 			controller.log.App.Error().Err(err).Msg("Failed to generate access token")
