@@ -277,6 +277,7 @@ func TestContextMiddleware(t *testing.T) {
 		OAuthBroker:  broker,
 		Tailscale:    nil,
 		PolicyEngine: policyEngine,
+		Helpers:      helpers,
 	})
 
 	contextMiddleware := NewContextMiddleware(ContextMiddlewareInput{

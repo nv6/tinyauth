@@ -294,6 +294,14 @@ func (app *BootstrapApp) Setup() error {
 	// runtime helpers
 	app.helpers.GetCookieDomain = app.getCookieDomain
 
+	err = app.dig.Provide(func() *model.RuntimeHelpers {
+		return &app.helpers
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to provide runtime helpers to container: %w", err)
+	}
+
 	// setup router
 	err = app.setupRouter()
 

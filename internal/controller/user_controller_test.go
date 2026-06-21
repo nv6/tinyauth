@@ -555,6 +555,7 @@ func TestUserController(t *testing.T) {
 		OAuthBroker:  broker,
 		Tailscale:    nil,
 		PolicyEngine: policyEngine,
+		Helpers:      helpers,
 	})
 
 	beforeEach := func() {

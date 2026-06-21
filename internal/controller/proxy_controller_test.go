@@ -721,6 +721,7 @@ func TestProxyController(t *testing.T) {
 		OAuthBroker:  broker,
 		Tailscale:    nil,
 		PolicyEngine: policyEngine,
+		Helpers:      helpers,
 	})
 
 	for _, test := range tests {

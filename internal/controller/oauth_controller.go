@@ -28,6 +28,7 @@ type OAuthController struct {
 	config  *model.Config
 	runtime *model.RuntimeConfig
 	auth    *service.AuthService
+	helpers *model.RuntimeHelpers
 }
 
 type OAuthControllerInput struct {
@@ -36,6 +37,7 @@ type OAuthControllerInput struct {
 	Log           *logger.Logger
 	Config        *model.Config
 	RuntimeConfig *model.RuntimeConfig
+	Helpers       *model.RuntimeHelpers
 	RouterGroup   *gin.RouterGroup `name:"apiRouterGroup"`
 	AuthService   *service.AuthService
 }
@@ -46,6 +48,7 @@ func NewOAuthController(i OAuthControllerInput) *OAuthController {
 		config:  i.Config,
 		runtime: i.RuntimeConfig,
 		auth:    i.AuthService,
+		helpers: i.Helpers,
 	}
 
 	oauthGroup := i.RouterGroup.Group("/oauth")

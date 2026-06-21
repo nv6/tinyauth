@@ -35,6 +35,8 @@ type OIDCController struct {
 	log     *logger.Logger
 	oidc    *service.OIDCService
 	runtime *model.RuntimeConfig
+	helpers *model.RuntimeHelpers
+	config  *model.Config
 }
 
 type AuthorizeCallback struct {
@@ -91,6 +93,8 @@ type OIDCControllerInput struct {
 	RuntimeConfig *model.RuntimeConfig
 	RouterGroup   *gin.RouterGroup `name:"apiRouterGroup"`
 	MainRouter    *gin.RouterGroup `name:"mainRouterGroup"`
+	Helpers       *model.RuntimeHelpers
+	Config        *model.Config
 }
 
 func NewOIDCController(i OIDCControllerInput) *OIDCController {
@@ -98,6 +102,8 @@ func NewOIDCController(i OIDCControllerInput) *OIDCController {
 		log:     i.Log,
 		oidc:    i.OIDCService,
 		runtime: i.RuntimeConfig,
+		helpers: i.Helpers,
+		config:  i.Config,
 	}
 
 	i.MainRouter.POST("/authorize", controller.authorize)

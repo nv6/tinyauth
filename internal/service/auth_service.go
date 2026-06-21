@@ -62,6 +62,7 @@ type AuthService struct {
 	config  *model.Config
 	runtime *model.RuntimeConfig
 	ctx     context.Context
+	helpers *model.RuntimeHelpers
 
 	ldap         *LdapService
 	queries      repository.Store
@@ -99,6 +100,7 @@ type AuthServiceInput struct {
 	OAuthBroker  *OAuthBrokerService
 	Tailscale    *TailscaleService `optional:"true"`
 	PolicyEngine *PolicyEngine
+	Helpers      *model.RuntimeHelpers
 }
 
 func NewAuthService(i AuthServiceInput) *AuthService {
@@ -112,6 +114,7 @@ func NewAuthService(i AuthServiceInput) *AuthService {
 		oauthBroker:  i.OAuthBroker,
 		tailscale:    i.Tailscale,
 		policyEngine: i.PolicyEngine,
+		helpers:      i.Helpers,
 	}
 
 	// get the max login limits based on the number of users and the configured max retries

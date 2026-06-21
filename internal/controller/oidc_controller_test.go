@@ -864,6 +864,8 @@ func TestOIDCController(t *testing.T) {
 				RuntimeConfig: &runtime,
 				RouterGroup:   group,
 				MainRouter:    &router.RouterGroup,
+				Helpers:       helpers,
+				Config:        &cfg,
 			})
 
 			recorder := httptest.NewRecorder()
