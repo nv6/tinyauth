@@ -1,7 +1,5 @@
-// gen/sqlc-wrapper generates store.go wrapper files for each sqlc driver package under
-// internal/repository/<driver>/. Run via:
-//
-//	go generate ./internal/repository/...
+// gen/sqlc_wrapper generates store.go wrapper files for each sqlc driver package under
+// internal/repository/<driver>/.
 //
 // The generator introspects *Queries methods and the model/params types in the
 // driver package, then emits a store.go that wraps *Queries so it satisfies

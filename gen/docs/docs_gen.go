@@ -1,3 +1,9 @@
+// gen/docs generates the .env.example and config.gen.md
+// files for the configuration of Tinyauth. Run via:
+//
+// The generator reads the Tinyauth configuration package and using reflection it generates the
+// example files. The .env.example is used in this repo while the config.gen.md is used in the
+// documentaton alongside some warnings that are added later.
 package main
 
 import (

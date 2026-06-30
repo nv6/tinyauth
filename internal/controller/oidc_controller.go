@@ -367,6 +367,7 @@ func (controller *OIDCController) authorizeComplete(c *gin.Context) {
 	})
 }
 
+//context:ignore /api/oidc/token POST
 func (controller *OIDCController) Token(c *gin.Context) {
 	if controller.oidc == nil {
 		controller.log.App.Warn().Msg("Received OIDC request but OIDC server is not configured")
@@ -538,6 +539,7 @@ func (controller *OIDCController) Token(c *gin.Context) {
 	c.JSON(200, tokenResponse)
 }
 
+//context:ignore /api/oidc/userinfo GET,POST
 func (controller *OIDCController) Userinfo(c *gin.Context) {
 	if controller.oidc == nil {
 		controller.log.App.Warn().Msg("Received OIDC userinfo request but OIDC server is not configured")

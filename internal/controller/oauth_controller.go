@@ -54,6 +54,7 @@ func NewOAuthController(i OAuthControllerInput) *OAuthController {
 	return controller
 }
 
+//context:ignore /api/oauth/url GET
 func (controller *OAuthController) oauthURLHandler(c *gin.Context) {
 	var req OAuthRequest
 
@@ -118,6 +119,7 @@ func (controller *OAuthController) oauthURLHandler(c *gin.Context) {
 	})
 }
 
+//context:ignore /api/oauth/callback GET
 func (controller *OAuthController) oauthCallbackHandler(c *gin.Context) {
 	var req OAuthRequest
 

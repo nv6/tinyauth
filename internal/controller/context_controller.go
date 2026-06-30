@@ -147,6 +147,7 @@ func (controller *ContextController) userContextHandler(c *gin.Context) {
 	c.JSON(200, userContext)
 }
 
+//context:ignore /api/context/app GET
 func (controller *ContextController) appContextHandler(c *gin.Context) {
 	c.JSON(200, AppContextResponse{
 		Status:  200,

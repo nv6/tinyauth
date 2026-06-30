@@ -16,26 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Gin won't let us set a middleware on a specific route (at least it doesn't work,
-// see https://github.com/gin-gonic/gin/issues/531) so we have to do some hackery
-var (
-	contextSkipPathsPrefix = []string{
-		"GET /api/context/app",
-		"GET /api/healthz",
-		"HEAD /api/healthz",
-		"GET /api/oauth/url",
-		"GET /api/oauth/callback",
-		"GET /api/oidc/clients",
-		"POST /api/oidc/token",
-		"GET /api/oidc/userinfo",
-		"POST /api/oidc/userinfo",
-		"GET /resources",
-		"POST /api/user/login",
-		"GET /.well-known/openid-configuration",
-		"GET /.well-known/jwks.json",
-	}
-)
-
 type ContextMiddleware struct {
 	log       *logger.Logger
 	runtime   *model.RuntimeConfig

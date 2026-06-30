@@ -33,6 +33,7 @@ func NewResourcesController(i ResourcesControllerInput) *ResourcesController {
 	return controller
 }
 
+//context:ignore /resources GET
 func (controller *ResourcesController) resourcesHandler(c *gin.Context) {
 	if controller.config.Resources.Path == "" {
 		c.JSON(404, gin.H{

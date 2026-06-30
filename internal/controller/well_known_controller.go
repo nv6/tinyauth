@@ -65,6 +65,7 @@ func NewWellKnownController(i WellKnownControllerInput) *WellKnownController {
 	return controller
 }
 
+//context:ignore /.well-known/openid-configuration GET
 func (controller *WellKnownController) OpenIDConnectConfiguration(c *gin.Context) {
 	if controller.oidc == nil {
 		c.JSON(500, gin.H{
@@ -94,6 +95,7 @@ func (controller *WellKnownController) OpenIDConnectConfiguration(c *gin.Context
 	})
 }
 
+//context:ignore /.well-known/jwks.json GET
 func (controller *WellKnownController) JWKS(c *gin.Context) {
 	if controller.oidc == nil {
 		c.JSON(500, gin.H{
@@ -122,6 +124,7 @@ func (controller *WellKnownController) JWKS(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+//context:ignore /.well-known/webfinger GET
 func (controller *WellKnownController) WebFinger(c *gin.Context) {
 	c.Header("Content-Type", "application/jrd+json")
 	c.Header("Access-Control-Allow-Origin", "*")

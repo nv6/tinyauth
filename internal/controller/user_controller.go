@@ -57,6 +57,7 @@ func NewUserController(i UserControllerInput) *UserController {
 	return controller
 }
 
+//context:ignore /api/user/login POST
 func (controller *UserController) loginHandler(c *gin.Context) {
 	var req LoginRequest
 
