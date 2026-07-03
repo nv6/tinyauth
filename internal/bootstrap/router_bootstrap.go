@@ -6,17 +6,28 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/tinyauthapp/tinyauth/internal/controller"
 	"github.com/tinyauthapp/tinyauth/internal/middleware"
 	"github.com/tinyauthapp/tinyauth/internal/model"
+	docs "github.com/tinyauthapp/tinyauth/internal/swagger"
 	"go.uber.org/dig"
 
 	"github.com/gin-gonic/gin"
 )
 
+// @title Tinyauth API
+// @version development
+// @description Swagger documentation for Tinyauth's API.
+// @license.name AGPL-3.0
+// @license.url https://github.com/tinyauthapp/tinyauth/blob/main/LICENSE
+// @BasePath /api
 func (app *BootstrapApp) setupRouter() error {
 	// we don't want gin debug mode
 	gin.SetMode(gin.ReleaseMode)
@@ -80,6 +91,12 @@ func (app *BootstrapApp) setupRouter() error {
 		return fmt.Errorf("failed to provide api router group: %w", err)
 	}
 
+	err = app.setupSwagger()
+
+	if err != nil {
+		return fmt.Errorf("failed to setup swagger: %w", err)
+	}
+
 	controllerProvideFor := []any{
 		controller.NewContextController,
 		controller.NewOAuthController,
@@ -122,6 +139,42 @@ func (app *BootstrapApp) setupRouter() error {
 	}
 
 	app.router = engine
+	return nil
+}
+
+func (app *BootstrapApp) setupSwagger() error {
+	appUrl, err := url.Parse(app.runtime.AppURL)
+
+	if err != nil {
+		return fmt.Errorf("failed to parse app url: %w", err)
+	}
+
+	docs.SwaggerInfo.Host = appUrl.Host
+	docs.SwaggerInfo.Schemes = []string{appUrl.Scheme}
+	docs.SwaggerInfo.Version = model.Version
+
+	type swaggerInput struct {
+		dig.In
+
+		RouterGroup *gin.RouterGroup `name:"mainRouterGroup"`
+	}
+
+	err = app.dig.Invoke(func(i swaggerInput) {
+		i.RouterGroup.Use(func(c *gin.Context) {
+			if strings.TrimSuffix(c.Request.URL.Path, "/") == "/swagger" {
+				c.Redirect(http.StatusFound, "/swagger/index.html")
+				c.Abort()
+				return
+			}
+			c.Next()
+		})
+		i.RouterGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to invoke swagger: %w", err)
+	}
+
 	return nil
 }
 

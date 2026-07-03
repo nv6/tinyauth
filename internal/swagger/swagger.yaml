@@ -1,0 +1,11 @@
+basePath: /api
+info:
+  contact: {}
+  description: Swagger documentation for Tinyauth's API.
+  license:
+    name: AGPL-3.0
+    url: https://github.com/tinyauthapp/tinyauth/blob/main/LICENSE
+  title: Tinyauth API
+  version: development
+paths: {}
+swagger: "2.0"
