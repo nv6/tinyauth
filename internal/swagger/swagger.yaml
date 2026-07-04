@@ -70,12 +70,70 @@ definitions:
       error:
         type: string
     type: object
+  controller.OpenIDConnectConfiguration:
+    properties:
+      authorization_endpoint:
+        type: string
+      claims_supported:
+        items:
+          type: string
+        type: array
+      grant_types_supported:
+        items:
+          type: string
+        type: array
+      id_token_signing_alg_values_supported:
+        items:
+          type: string
+        type: array
+      issuer:
+        type: string
+      jwks_uri:
+        type: string
+      request_object_signing_alg_values_supported:
+        items:
+          type: string
+        type: array
+      request_parameter_supported:
+        type: boolean
+      response_types_supported:
+        items:
+          type: string
+        type: array
+      scopes_supported:
+        items:
+          type: string
+        type: array
+      service_documentation:
+        type: string
+      subject_types_supported:
+        items:
+          type: string
+        type: array
+      token_endpoint:
+        type: string
+      token_endpoint_auth_methods_supported:
+        items:
+          type: string
+        type: array
+      userinfo_endpoint:
+        type: string
+    type: object
   controller.SimpleResponse:
     properties:
       message:
         type: string
       status:
         type: integer
+    type: object
+  controller.TotpPendingResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: integer
+      totpPending:
+        type: boolean
     type: object
   controller.UCRAuth:
     properties:
@@ -121,6 +179,22 @@ definitions:
         $ref: '#/definitions/controller.UCRTailscale'
       totp:
         $ref: '#/definitions/controller.UCRTOTP'
+    type: object
+  controller.WebfingerResponse:
+    properties:
+      links:
+        items:
+          $ref: '#/definitions/controller.WebfingerResponseLink'
+        type: array
+      subject:
+        type: string
+    type: object
+  controller.WebfingerResponseLink:
+    properties:
+      href:
+        type: string
+      rel:
+        type: string
     type: object
   model.AddressClaim:
     properties:
@@ -217,6 +291,369 @@ info:
   title: Tinyauth API
   version: development
 paths:
+  /.well-known/jwks.json:
+    get:
+      description: JWKS Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: JWKS
+      tags:
+      - well-known
+  /.well-known/openid-configuration:
+    get:
+      description: OpenID Connect Configuration Discovery Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.OpenIDConnectConfiguration'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: OpenID Connect Configuration
+      tags:
+      - well-known
+  /.well-known/webfinger:
+    get:
+      description: WebFinger Endpoint
+      parameters:
+      - description: Resource
+        in: query
+        name: resource
+        required: true
+        type: string
+      - description: Rel
+        in: query
+        name: rel
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.WebfingerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: WebFinger
+      tags:
+      - well-known
+  /api/auth/caddy:
+    get:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+  /api/auth/envoy:
+    delete:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+    get:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+    head:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+    options:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+    patch:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+    post:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+    put:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+  /api/auth/nginx:
+    get:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
+  /api/auth/traefik:
+    get:
+      description: Forward-Auth Proxy Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Proxy
+      tags:
+      - forward-auth
   /api/context/app:
     get:
       description: Get the app context
@@ -358,6 +795,108 @@ paths:
       summary: Authorize Complete
       tags:
       - oidc
+  /api/user/login:
+    post:
+      consumes:
+      - application/json
+      description: Login Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.TotpPendingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Login
+      tags:
+      - accounts
+  /api/user/logout:
+    post:
+      description: Logout Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Logout
+      tags:
+      - accounts
+  /api/user/tailscale:
+    post:
+      consumes:
+      - application/json
+      description: Tailscale Auth Endpoint (Experimental)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Tailscale
+      tags:
+      - accounts
+  /api/user/totp:
+    post:
+      consumes:
+      - application/json
+      description: TOTP Endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: TOTP
+      tags:
+      - accounts
   /authorize:
     get:
       consumes:
@@ -687,4 +1226,27 @@ paths:
       summary: Userinfo
       tags:
       - oidc
+  /resources/{resource}:
+    get:
+      description: Get a resource by file name
+      parameters:
+      - description: Resource Name
+        in: path
+        name: resource
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.SimpleResponse'
+      summary: Resources Endpoint
+      tags:
+      - resources
 swagger: "2.0"
