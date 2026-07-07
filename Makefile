@@ -9,11 +9,9 @@ COMMIT_HASH := $(shell git rev-parse HEAD)
 BUILD_TIMESTAMP := $(shell date '+%Y-%m-%dT%H:%M:%S')
 BIN_NAME := tinyauth-$(GOARCH)
 LDFLAGS := -s -w
-# We don't want all of the tailscale feature-set
-TAILSCALE_BUILD_TAGS = $(shell go run tailscale.com/cmd/featuretags@v1.100.0 -min -add acme,serve,netstack)
 # Whatever 6MB serialization lib Gin is using
 GIN_BUILD_TAGS := nomsgpack
-BUILD_TAGS = $(GIN_BUILD_TAGS),$(TAILSCALE_BUILD_TAGS)
+BUILD_TAGS = $(GIN_BUILD_TAGS)
 
 # Development vars
 DEV_COMPOSE := $(shell test -f "docker-compose.test.yml" && echo "docker-compose.test.yml" || echo "docker-compose.dev.yml" )

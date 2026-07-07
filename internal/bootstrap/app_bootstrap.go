@@ -278,27 +278,6 @@ func (app *BootstrapApp) Setup() error {
 
 	app.runtime.ConfiguredProviders = configuredProviders
 
-	// if tailscale is enabled and listening, replace the app url with the tailscale hostname
-	if app.services.tailscaleService != nil && app.config.Experimental.Tailscale.Listen {
-		tailscaleUrl := "https://" + app.services.tailscaleService.GetHostname()
-
-		// if the tailscale url is different from the app url, replace it
-		if tailscaleUrl != app.runtime.AppURL {
-			app.log.App.Info().Msg("Listening on tailscale, replacing app url with tailscale hostname")
-
-			app.runtime.AppURL = tailscaleUrl
-
-			// also update cookie domain
-			cookieDomain, err := utils.GetCookieDomain(tailscaleUrl, app.config.Auth.SubdomainsEnabled)
-
-			if err != nil {
-				return fmt.Errorf("failed to get cookie domain: %w", err)
-			}
-
-			app.runtime.CookieDomain = cookieDomain
-		}
-	}
-
 	// force an update of the redirect urls for all oauth providers, if they are empty
 	services := app.services.oauthBrokerService.GetConfiguredServices()
 

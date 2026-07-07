@@ -1,6 +1,9 @@
 package model
 
-import "os"
+import (
+	"os"
+	"time"
+)
 
 type RuntimeEnv int
 
@@ -81,10 +84,8 @@ func NewDefaultConfiguration(runtimeEnv RuntimeEnv) *Config {
 			PrivateKeyPath: "./tinyauth_oidc_key",
 			PublicKeyPath:  "./tinyauth_oidc_key.pub",
 		},
-		Experimental: ExperimentalConfig{
-			Tailscale: TailscaleConfig{
-				Dir: "./tailscale_state",
-			},
+		Tailscale: TailscaleConfig{
+			CacheDuration: int(time.Duration(5 * time.Minute).Seconds()),
 		},
 		LabelProvider: "auto",
 	}
@@ -95,7 +96,6 @@ func NewDefaultConfiguration(runtimeEnv RuntimeEnv) *Config {
 		cfg.Resources.Path = "/data/resources"
 		cfg.OIDC.PrivateKeyPath = "/data/oidc/key.pem"
 		cfg.OIDC.PublicKeyPath = "/data/oidc/key.pub"
-		cfg.Experimental.Tailscale.Dir = "/data/tailscale"
 	}
 
 	return cfg
@@ -114,6 +114,7 @@ type Config struct {
 	UI            UIConfig           `description:"UI customization." yaml:"ui,omitempty"`
 	LDAP          LDAPConfig         `description:"LDAP configuration." yaml:"ldap,omitempty"`
 	Experimental  ExperimentalConfig `description:"Experimental features, use with caution." yaml:"experimental,omitempty"`
+	Tailscale     TailscaleConfig    `description:"Tailscale configuration." yaml:"tailscale,omitempty"`
 	LabelProvider string             `description:"Label provider to use for ACLs (auto, docker, kubernetes or none to disable). auto detects the environment." yaml:"labelProvider,omitempty"`
 	Log           LogConfig          `description:"Logging configuration." yaml:"log,omitempty"`
 	ConfigFile    string             `description:"Path to config file." yaml:"-"`
@@ -238,18 +239,13 @@ type LogStreamConfig struct {
 	Level   string `description:"Log level for this stream. Use global if empty." yaml:"level,omitempty"`
 }
 
-type ExperimentalConfig struct {
-	Tailscale TailscaleConfig `description:"Tailscale configuration." yaml:"tailscale"`
-}
+type ExperimentalConfig struct{}
 
 type TailscaleConfig struct {
-	Enabled   bool   `description:"Enable Tailscale integration." yaml:"enabled,omitempty"`
-	Dir       string `description:"Tailscale state directory." yaml:"dir,omitempty"`
-	Hostname  string `description:"Tailscale hostname." yaml:"hostname,omitempty"`
-	AuthKey   string `description:"Tailscale auth key." yaml:"authKey,omitempty"`
-	Ephemeral bool   `description:"Use ephemeral Tailscale node." yaml:"ephemeral,omitempty"`
-	Funnel    bool   `description:"Enable Tailscale Funnel." yaml:"funnel,omitempty"`
-	Listen    bool   `description:"Listen on the Tailscale address instead of standard address." yaml:"listen,omitempty"`
+	Enabled       bool   `description:"Enable Tailscale integration." yaml:"enabled,omitempty"`
+	APIToken      string `description:"Tailscale API token." yaml:"apiToken,omitempty"`
+	Tailnet       string `description:"Tailnet name." yaml:"tailnet,omitempty"`
+	CacheDuration int    `description:"Cache duration for Tailscale device and user lists in seconds." yaml:"cacheDuration,omitempty"`
 }
 
 // OAuth/OIDC config

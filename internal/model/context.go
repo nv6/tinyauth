@@ -59,7 +59,7 @@ type LDAPContext struct {
 
 type TailscaleContext struct {
 	BaseContext
-	UserID string
+	NodeName string
 }
 
 func (c *UserContext) IsAuthenticated() bool {
@@ -249,7 +249,7 @@ func (c *UserContext) OAuthName() string {
 
 func (c *UserContext) TailscaleNodeName() string {
 	if c.Tailscale != nil {
-		return c.Tailscale.Username
+		return c.Tailscale.NodeName
 	}
 	return ""
 }

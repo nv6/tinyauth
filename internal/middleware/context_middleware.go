@@ -112,7 +112,7 @@ func (m *ContextMiddleware) Middleware() gin.HandlerFunc {
 
 		// Lastly check if we have a tailscale session to add
 		if m.tailscale != nil {
-			tailscaleContext, err := m.tailscaleWhois(c.Request.Context(), c.ClientIP())
+			tailscaleContext, err := m.tailscaleWhois(c.ClientIP())
 
 			if err != nil {
 				m.log.App.Error().Err(err).Msgf("Error performing tailscale whois for IP %s: %v", c.ClientIP(), err)
@@ -167,7 +167,7 @@ func (m *ContextMiddleware) cookieAuth(ctx context.Context, uuid string, ip stri
 			userContext.Local.Attributes.Email = utils.CompileUserEmail(user.Username, m.runtime.CookieDomain)
 		}
 	case model.ProviderTailscale:
-		tailscaleContext, err := m.tailscaleWhois(ctx, ip)
+		tailscaleContext, err := m.tailscaleWhois(ip)
 
 		if err != nil {
 			return nil, nil, fmt.Errorf("error performing tailscale whois: %w", err)
@@ -175,6 +175,10 @@ func (m *ContextMiddleware) cookieAuth(ctx context.Context, uuid string, ip stri
 
 		if tailscaleContext == nil {
 			return nil, nil, fmt.Errorf("tailscale whois returned no result for IP: %s", ip)
+		}
+
+		if tailscaleContext.Email != userContext.Tailscale.Email {
+			return nil, nil, fmt.Errorf("device owner mismatch, login again")
 		}
 
 		userContext.Tailscale = tailscaleContext
@@ -308,12 +312,12 @@ func (m *ContextMiddleware) isIgnorePath(path string) bool {
 	return false
 }
 
-func (m *ContextMiddleware) tailscaleWhois(ctx context.Context, ip string) (*model.TailscaleContext, error) {
+func (m *ContextMiddleware) tailscaleWhois(ip string) (*model.TailscaleContext, error) {
 	if m.tailscale == nil {
 		return nil, nil
 	}
 
-	whois, err := m.tailscale.Whois(ctx, ip)
+	whois, err := m.tailscale.Whois(ip)
 
 	if err != nil {
 		m.log.App.Error().Err(err).Msgf("Error performing Tailscale whois for IP %s: %v", ip, err)
@@ -324,13 +328,15 @@ func (m *ContextMiddleware) tailscaleWhois(ctx context.Context, ip string) (*mod
 		return nil, nil
 	}
 
+	username := strings.Replace(whois.LoginName, "@", "_", 1)
+
 	uctx := model.TailscaleContext{
 		BaseContext: model.BaseContext{
-			Username: whois.NodeName,
+			Username: username,
 			Email:    whois.LoginName,
 			Name:     whois.DisplayName,
 		},
-		UserID: whois.UserID,
+		NodeName: whois.NodeName,
 	}
 
 	return &uctx, nil

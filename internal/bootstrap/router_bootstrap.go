@@ -126,17 +126,9 @@ func (app *BootstrapApp) setupRouter() error {
 }
 
 // Top down
-// 1. Tailscale (if tailscale.listen)
-// 2. Unix socket (if server.socketPath)
-// 3. HTTP - default
+// 1. Unix socket (if server.socketPath)
+// 2. HTTP - default
 func (app *BootstrapApp) getListenerFunc() (func(ctx context.Context) error, error) {
-	if app.config.Experimental.Tailscale.Listen {
-		if app.services.tailscaleService == nil {
-			return nil, fmt.Errorf("experimental.tailscale.listen is enabled but tailscale service is not initialized")
-		}
-		return app.serveTailscale, nil
-	}
-
 	if app.config.Server.SocketPath != "" {
 		return app.serveUnix, nil
 	}
@@ -188,22 +180,6 @@ func (app *BootstrapApp) serveUnix(ctx context.Context) error {
 	}
 
 	return app.serve(listener, server, ctx, "unix socket")
-}
-
-func (app *BootstrapApp) serveTailscale(ctx context.Context) error {
-	app.log.App.Info().Msgf("Starting Tailscale server on %s", fmt.Sprintf("https://%s", app.services.tailscaleService.GetHostname()))
-
-	listener, err := app.services.tailscaleService.CreateListener()
-
-	if err != nil {
-		return fmt.Errorf("failed to create tailscale listener: %w", err)
-	}
-
-	server := &http.Server{
-		Handler: app.router.Handler(),
-	}
-
-	return app.serve(listener, server, ctx, "tailscale")
 }
 
 func (app *BootstrapApp) serve(listener net.Listener, server *http.Server, ctx context.Context, name string) error {
